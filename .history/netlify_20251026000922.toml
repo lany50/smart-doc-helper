@@ -1,0 +1,16 @@
+# Netlify配置文件
+
+[build]
+  publish = "."
+  command = "echo 'No build needed'"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+
+# 环境变量提示（在Netlify网页界面设置）
+# API_KEY = "your-api-key"
+# API_BASE_URL = "https://api.st0722.top/v1"

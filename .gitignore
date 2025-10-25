@@ -1,0 +1,26 @@
+# API配置文件（不要上传）
+config.js
+
+# 环境变量
+.env
+.env.local
+
+# 日志文件
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE配置
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules
+node_modules/
+
+# Build输出
+dist/
+build/
