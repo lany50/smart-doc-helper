@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub stars](https://img.shields.io/github/stars/lany50/smart-doc-helper?style=social)](https://github.com/lany50/smart-doc-helper/stargazers)
 
-[在线体验](https://your-site.netlify.app) · [功能演示](#-功能演示) · [快速开始](#-快速开始) · [部署指南](#-部署指南)
+[在线体验](https://smartocrhelper.netlify.app/) · [功能演示](#-功能演示) · [快速开始](#-快速开始) · [部署指南](#-部署指南)
 
 <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" />
 <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" />
@@ -456,7 +456,7 @@ git commit -m "docs: Update deployment guide"
 
 ## 📝 更新日志
 
-### [v1.0.0] - 2024-01-15
+### [v1.0.0] - 2025-10-25
 
 #### ✨ 新增
 
@@ -521,7 +521,7 @@ in the Software without restriction...
 ## 📮 联系方式
 
 - **GitHub**: [@lany50](https://github.com/lany50)
-- **Email**: your.email@example.com
+- **Email**: kklkklsb@163.com
 - **Issues**: [提交问题](https://github.com/lany50/smart-doc-helper/issues)
 
 ---
@@ -533,7 +533,6 @@ in the Software without restriction...
 - ⭐ 给项目一个 Star
 - 🍴 Fork 项目并参与贡献
 - 📣 分享给更多人
-- ☕ [请我喝杯咖啡](https://example.com/donate)（可选）
 
 ---
 
