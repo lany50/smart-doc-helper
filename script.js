@@ -1,3 +1,19 @@
+const API_CONFIG = (() => {
+    if (typeof window.NETLIFY_API_KEY !== 'undefined' && window.NETLIFY_API_KEY) {
+        console.log('🚀 Netlify环境变量');
+        return {
+            baseURL: window.NETLIFY_API_BASE_URL || 'https://api.st0722.top/v1',
+            apiKey: window.NETLIFY_API_KEY
+        };
+    }
+    if (typeof window.LOCAL_API_CONFIG !== 'undefined') {
+        console.log('💻 本地配置');
+        return window.LOCAL_API_CONFIG;
+    }
+    console.error('❌ 配置未找到');
+    return { baseURL: 'https://api.st0722.top/v1', apiKey: '' };
+})();
+console.log('✅ API配置:', { hasKey: !!API_CONFIG.apiKey });
 // script.js - 主程序文件
 // API配置从 config.js 加载
 
