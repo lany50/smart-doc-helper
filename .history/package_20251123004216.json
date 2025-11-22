@@ -1,0 +1,11 @@
+{
+  "name": "smart-doc-helper",
+  "version": "1.0.0",
+  "description": "Smart document helper for OCR and grading.",
+  "main": "script.js",
+  "scripts": {
+    "build": "node inject-env.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
