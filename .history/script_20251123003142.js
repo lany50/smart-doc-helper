@@ -910,13 +910,12 @@ async function callOCR(imageBase64, model, apiKey = null) {
 }
 
 // 作文OCR
-async function callEssayOCR(imageBase64, model, apiKey = null) {
-    const finalApiKey = apiKey || API_CONFIG.apiKey;
+async function callEssayOCR(imageBase64, model) {
     const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${finalApiKey}`
+            'Authorization': `Bearer ${API_CONFIG.apiKey}`
         },
         body: JSON.stringify({
             model: model,

@@ -767,32 +767,16 @@ function initEssayMode() {
     
     // 显示写作思路
     function displayGuidanceResult(result) {
-        // 将Markdown格式的文本转换为分块卡片
-        const sections = result.split(/\n(?=\d\.\s\*\*)/);
-        
-        const htmlContent = sections.map(section => {
-            if (!section.trim()) return '';
-            
-            const titleMatch = section.match(/\*\*(.*?)\*\*/);
-            const title = titleMatch ? titleMatch[1] : '详情';
-            
-            let content = section.replace(/\d\.\s\*\*(.*?)\*\*\n?/, '').trim();
-            
-            // 进一步处理内容中的Markdown
-            content = content
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // 加粗
-                .replace(/-\s(.*?)(?=\n-|\n\n|$)/g, '<p class="mb-1 ml-4">&bull; $1</p>') // 列表项
-                .replace(/\n/g, '<br>'); // 换行
+        // 简单的Markdown转义，修复显示问题
+        const formattedResult = result
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // **Bold** -> <strong>Bold</strong>
+            .replace(/(\r\n|\n|\r)/gm, '<br>'); // 保持换行
 
-            return `
-                <div class="grading-card">
-                    <h4>${title}</h4>
-                    <div class="content">${content}</div>
-                </div>
-            `;
-        }).join('');
-
-        guidanceContent.innerHTML = htmlContent;
+        guidanceContent.innerHTML = `
+            <div class="prose prose-purple max-w-none">
+                <div class="text-sm leading-relaxed text-gray-700 font-sans">${formattedResult}</div>
+            </div>
+        `;
     }
     
     // 批改结果按钮
@@ -863,13 +847,12 @@ ${guidanceContent.innerText}
 // ========================================
 
 // 普通OCR
-async function callOCR(imageBase64, model, apiKey = null) {
-    const finalApiKey = apiKey || API_CONFIG.apiKey;
+async function callOCR(imageBase64, model) {
     const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${finalApiKey}`
+            'Authorization': `Bearer ${API_CONFIG.apiKey}`
         },
         body: JSON.stringify({
             model: model,
@@ -910,13 +893,12 @@ async function callOCR(imageBase64, model, apiKey = null) {
 }
 
 // 作文OCR
-async function callEssayOCR(imageBase64, model, apiKey = null) {
-    const finalApiKey = apiKey || API_CONFIG.apiKey;
+async function callEssayOCR(imageBase64, model) {
     const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${finalApiKey}`
+            'Authorization': `Bearer ${API_CONFIG.apiKey}`
         },
         body: JSON.stringify({
             model: model,
