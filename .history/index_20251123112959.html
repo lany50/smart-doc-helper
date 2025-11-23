@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能文档识别助手</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 自定义字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gradient-to-br from-[#FFF9F0] via-[#F8F4EC] to-[#FFF2E6] min-h-screen">
+    <!-- 装饰性背景 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-[#F4A261] to-transparent opacity-20 blur-3xl"></div>
+        <div class="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-[#E07B39] to-transparent opacity-20 blur-3xl"></div>
+    </div>
+    
+    <!-- 顶部导航 -->
+    <header class="relative z-10 px-6 py-6">
+        <nav class="max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#E07B39] to-[#F4A261] flex items-center justify-center text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h1 class="text-2xl font-serif text-[#2D2A26]">智能文档助手</h1>
+                </div>
+            </div>
+            
+            <!-- 模式切换标签 -->
+            <div class="flex gap-3">
+                <button id="normalModeBtn" class="mode-tab active px-6 py-3 rounded-xl font-medium transition-all duration-300">
+                    📄 普通OCR
+                </button>
+                <button id="essayModeBtn" class="mode-tab px-6 py-3 rounded-xl font-medium transition-all duration-300">
+                    ✍️ 英语作文批改
+                </button>
+            </div>
+        </nav>
+    </header>
+    
+    <!-- 主要内容区 -->
+    <main class="relative z-10 px-6 pb-20">
+        <!-- 普通OCR模式 -->
+        <section id="normalMode" class="mode-content max-w-4xl mx-auto">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-serif text-[#2D2A26] mb-2">文档识别</h2>
+                <p class="text-[#3A3632] opacity-70">上传图片，快速提取文字内容</p>
+            </div>
+            
+            <!-- OCR上传区 -->
+            <div class="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-[#F4A261]/20">
+                <div id="normalDropZone" class="border-2 border-dashed border-[#D87645]/40 rounded-xl p-12 text-center transition-all duration-300 hover:border-[#E07B39] hover:bg-[#FFF9F0]/50 cursor-pointer">
+                    <div class="mb-4">
+                        <svg class="w-16 h-16 mx-auto text-[#E07B39] opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-medium text-[#2D2A26] mb-2">拖拽文件到这里</h3>
+                    <p class="text-[#3A3632] opacity-70 mb-4">或点击选择文件</p>
+                    <input type="file" id="normalFileInput" class="hidden" accept="image/*">
+                    <button id="normalSelectBtn" class="px-6 py-3 bg-gradient-to-r from-[#E07B39] to-[#F4A261] text-white rounded-full font-medium hover:shadow-lg transition-all duration-300 hover:scale-105">
+                        选择文件
+                    </button>
+                    <p class="text-sm text-[#3A3632] opacity-60 mt-4">支持 JPG、PNG、WebP 格式</p>
+                </div>
+                
+                <!-- OCR模型选择 -->
+                <div class="mt-6 flex items-center justify-center gap-4">
+                    <label class="text-sm font-medium text-[#2D2A26]">识别模型：</label>
+                    <select id="normalModelSelect" class="px-4 py-2 border border-[#F4A261]/30 rounded-lg text-sm bg-white/80 focus:outline-none focus:ring-2 focus:ring-[#E07B39]">
+                        <option value="gemini-flash-lite-latest">Gemini</option>
+                        <option value="qwen-vl-max-latest">Qwen3-VL-235B</option>
+                    </select>
+                </div>
+                
+                <!-- 进度条 -->
+                <div id="normalProgress" class="hidden mt-8">
+                    <div class="flex items-center justify-center mb-2">
+                        <div class="loading-spinner"></div>
+                        <span id="normalProgressText" class="ml-3 text-[#3A3632]">识别中...</span>
+                    </div>
+                    <div class="w-full bg-[#F8F4EC] rounded-full h-2">
+                        <div id="normalProgressBar" class="h-full bg-gradient-to-r from-[#E07B39] to-[#F4A261] rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- OCR结果展示 -->
+            <div id="normalResult" class="hidden mt-8 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-[#F4A261]/20 overflow-hidden">
+                <div class="p-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-serif text-[#2D2A26]">识别结果</h3>
+                        <div class="flex gap-2">
+                            <button id="normalCopyBtn" class="px-4 py-2 bg-[#E07B39] text-white rounded-lg text-sm hover:bg-[#D87645] transition-all">
+                                📋 复制
+                            </button>
+                            <button id="normalDownloadBtn" class="px-4 py-2 bg-white text-[#E07B39] border border-[#E07B39] rounded-lg text-sm hover:bg-[#FFF9F0] transition-all">
+                                📥 下载
+                            </button>
+                            <button id="normalNewBtn" class="px-4 py-2 bg-[#F8F4EC] text-[#3A3632] rounded-lg text-sm hover:bg-[#F4A261]/20 transition-all">
+                                🔄 识别新文档
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-sm font-medium text-[#3A3632] mb-2">原始图片</h4>
+                            <div class="bg-[#F8F4EC] rounded-xl p-4 flex items-center justify-center min-h-[300px]">
+                                <img id="normalPreview" src="" alt="预览" class="max-w-full h-auto rounded-lg shadow-md">
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-medium text-[#3A3632] mb-2">提取文本</h4>
+                            <div class="bg-[#F8F4EC] rounded-xl p-4 min-h-[300px] max-h-[500px] overflow-y-auto">
+                                <pre id="normalExtractedText" class="whitespace-pre-wrap text-[#3A3632] text-sm leading-relaxed font-sans"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 英语作文批改模式 -->
+        <section id="essayMode" class="mode-content hidden max-w-7xl mx-auto">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-serif text-[#2D2A26] mb-2">英语作文批改</h2>
+                <p class="text-[#3A3632] opacity-70">OCR识别作文 + AI智能批改</p>
+            </div>
+            
+            <!-- 作文类型选择 -->
+            <div class="flex justify-center gap-4 mb-8">
+                <button id="applicationBtn" class="essay-type-tab active px-6 py-3 rounded-xl font-medium transition-all duration-300">
+                    📝 应用文写作 (15分)
+                </button>
+                <button id="continuationBtn" class="essay-type-tab px-6 py-3 rounded-xl font-medium transition-all duration-300">
+                    📖 读后续写 (25分)
+                </button>
+            </div>
+            
+            <!-- 应用文批改界面 -->
+            <div id="applicationSection" class="essay-section">
+                <!-- ... 应用文的HTML内容 ... -->
+            </div>
+            
+            <!-- 读后续写批改界面 -->
+            <div id="continuationSection" class="essay-section hidden">
+                <!-- ... 读后续写的HTML内容 ... -->
+            </div>
+        </section>
+    </main>
+    
+    <!-- 页脚 -->
+    <footer class="relative z-10 px-6 py-8 mt-20 border-t border-[#F4A261]/20">
+        <div class="max-w-7xl mx-auto text-center">
+            <p class="text-sm text-[#3A3632] opacity-50">© 2024 智能文档助手. 专为学习设计.</p>
+        </div>
+    </footer>
+    
+    <!-- JavaScript -->
+    <script>
+        // Netlify环境变量注入（生产环境）
+        window.NETLIFY_API_BASE_URL = "https://api.st0722.top/v1";
+        window.NETLIFY_API_KEY = "sk-2ucC4n6e2m2HiYTZhpXk964gIaSLuOqpR8OUhYp7TJarde0Q";
+        console.log('🔧 环境变量已设置');
+    </script>
+    <script src="script.js"></script>
+</body>
+>>>>>>> Stashed changes
