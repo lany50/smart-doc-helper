@@ -1675,69 +1675,6 @@ async function getWritingGuidance(topic, model) {
     return data.choices[0].message.content.trim();
 }
 
-// 批改读后续写
-async function gradeContinuation(topic, original, content, model) {
-    const prompt = CONTINUATION_GRADING_PROMPT
-        .replace('{TOPIC}', topic)
-        .replace('{ORIGINAL}', original)
-        .replace('{CONTINUATION}', content);
-    
-    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_CONFIG.apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{
-                role: "user",
-                content: prompt
-            }],
-            max_tokens: 4000,
-            temperature: 0.7
-        })
-    });
-    
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data.choices[0].message.content.trim();
-}
-
-// 获取读后续写思路指导
-async function getContinuationGuidance(topic, model) {
-    const prompt = CONTINUATION_GUIDANCE_PROMPT.replace('{TOPIC}', topic);
-    
-    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_CONFIG.apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{
-                role: "user",
-                content: prompt
-            }],
-            max_tokens: 3000,
-            temperature: 0.7
-        })
-    });
-    
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data.choices[0].message.content.trim();
-}
-
 // ========================================
 // 工具函数
 // ========================================
