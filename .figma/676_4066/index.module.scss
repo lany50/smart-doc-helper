@@ -1,0 +1,15 @@
+* {
+  box-sizing: border-box;
+}
+
+.vector {
+  width: 180px;
+  height: 2px;
+  background-image: linear-gradient(
+    117.18deg,
+    #ffffff -7.58%,
+    #dcd4ff 41.66%,
+    #e2cbff 52.07%,
+    #98baff 63.91%
+  );
+}

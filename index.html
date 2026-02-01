@@ -16,7 +16,155 @@
     <!-- 自定义样式 -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gradient-to-br from-[#FFF9F0] via-[#F8F4EC] to-[#FFF2E6] min-h-screen">
+<body class="ui-page">
+    <div id="app" class="ui-app">
+        <header class="ui-topbar">
+            <div class="ui-brand">
+                <span class="ui-brand-badge">SD</span>
+                <span>智能文档助手</span>
+            </div>
+            <button id="openSettingsBtn" class="ui-action" type="button">设置</button>
+        </header>
+
+        <main class="flex-1">
+            <section id="emptyState" class="ui-main">
+                <div class="ui-container ui-empty">
+                    <h1 class="ui-title">我能帮你做什么？</h1>
+                    <p class="ui-subtitle">上传图片做 OCR，或粘贴作文进行批改</p>
+
+                    <div class="ui-suggestions" role="list">
+                        <button class="ui-suggestion" type="button" data-suggest="ocr_single">识别一张图片里的文字</button>
+                        <button class="ui-suggestion" type="button" data-suggest="ocr_multi">识别多张作文图片并合并文本</button>
+                        <button class="ui-suggestion" type="button" data-suggest="essay_app">批改一篇应用文（15分）</button>
+                        <button class="ui-suggestion" type="button" data-suggest="essay_cont">批改一篇读后续写（25分）</button>
+                    </div>
+
+                    <div id="emptyPanel" class="ui-panel ui-hidden" aria-live="polite"></div>
+                </div>
+            </section>
+
+            <section id="chatState" class="ui-hidden">
+                <div id="chat" class="ui-chat" aria-live="polite"></div>
+            </section>
+        </main>
+
+        <div class="ui-composer-shell">
+            <div class="ui-composer">
+                <div class="ui-composer-card">
+                    <div class="ui-composer-row">
+                        <button id="attachBtn" class="ui-icon-btn" type="button">Attach</button>
+                        <input id="fileInput" class="ui-hidden" type="file" accept="image/*" multiple>
+                        <input id="chatInput" class="ui-input" type="text" placeholder="输入你的问题，或选择一个工具开始…" autocomplete="off">
+                        <button id="sendBtn" class="ui-icon-btn primary" type="button">发送</button>
+                    </div>
+
+                    <div class="ui-chips" role="toolbar" aria-label="工具">
+                        <button id="chipOcr" class="ui-chip active" type="button">OCR</button>
+                        <button id="chipEssay" class="ui-chip" type="button">作文批改</button>
+                        <button id="chipModel" class="ui-chip" type="button">模型</button>
+                        <button id="chipMore" class="ui-chip" type="button">更多</button>
+                    </div>
+
+                    <div id="composerPanel" class="ui-hidden">
+                        <div id="panelOcr" class="ui-panel">
+                            <div class="ui-form">
+                                <div class="ui-field">
+                                    <div class="ui-field-label">识别模型</div>
+                                    <div class="ui-field-control">
+                                        <select id="ocrModelSelect">
+                                            <option value="gemini-flash-lite-latest">Gemini</option>
+                                            <option value="qwen-vl-max-latest">Qwen3-VL-235B</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div id="ocrFileHint" class="ui-subtitle ui-form-note">点击 Attach 选择图片后再开始识别</div>
+                                <div id="ocrFileList" class="ui-hidden"></div>
+
+                                <div class="ui-form-actions">
+                                    <button id="ocrStartBtn" class="ui-icon-btn primary" type="button">开始识别</button>
+                                    <button id="ocrClearBtn" class="ui-icon-btn" type="button">清空图片</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="panelEssay" class="ui-panel ui-hidden">
+                            <div class="ui-form">
+                                <div class="ui-field">
+                                    <div class="ui-field-label">作文类型</div>
+                                    <div class="ui-field-control">
+                                        <select id="essayTypeSelect">
+                                            <option value="application">应用文（15分）</option>
+                                            <option value="continuation">读后续写（25分）</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="ui-field">
+                                    <div class="ui-field-label">题目/要求</div>
+                                    <div class="ui-field-control">
+                                        <textarea id="essayTopicInput" rows="4" placeholder="粘贴题目要求…"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="ui-field">
+                                    <div id="essayTextLabel" class="ui-field-label">学生作文</div>
+                                    <div class="ui-field-control">
+                                        <textarea id="essayTextInput" rows="8" placeholder="粘贴作文内容…（留空可获取写作思路）"></textarea>
+                                    </div>
+                                </div>
+
+                                <div id="essayOriginalWrap" class="ui-hidden">
+                                    <div class="ui-field">
+                                        <div class="ui-field-label">原文内容</div>
+                                        <div class="ui-field-control">
+                                            <textarea id="essayOriginalInput" rows="6" placeholder="粘贴读后续写原文…"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="ui-form-meta">
+                                    <span class="ui-subtitle">字数：<span id="essayWordCountText">0</span></span>
+                                </div>
+
+                                <div class="ui-form-actions">
+                                    <button id="essayGuidanceBtn" class="ui-icon-btn" type="button">获取写作思路</button>
+                                    <button id="essayGradeBtn" class="ui-icon-btn primary" type="button">开始批改</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="panelModel" class="ui-panel ui-hidden">
+                            <div class="ui-form">
+                                <div class="ui-field">
+                                    <div class="ui-field-label">文本模型</div>
+                                    <div class="ui-field-control">
+                                        <select id="textModelSelect">
+                                            <option value="gemini-3-pro-preview">gemini-3-pro-preview</option>
+                                            <option value="gpt-5.1">gpt-5.1</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="ui-subtitle ui-form-note" id="apiStatusText"></div>
+                            </div>
+                        </div>
+
+                        <div id="panelMore" class="ui-panel ui-hidden">
+                            <div class="ui-form">
+                                <div class="ui-subtitle ui-form-note">本项目建议使用 config.js 或部署环境变量配置 API。</div>
+                                <div class="ui-form-actions">
+                                    <button id="openLegacyBtn" class="ui-icon-btn" type="button">打开旧版界面</button>
+                                    <button id="hideLegacyBtn" class="ui-icon-btn ui-hidden" type="button">返回新版界面</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="legacyApp" class="ui-hidden">
     <!-- 装饰性背景 -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none">
         <div class="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-[#F4A261] to-transparent opacity-20 blur-3xl"></div>
@@ -587,14 +735,11 @@
             <p class="text-sm text-[#3A3632] opacity-50">© 2024 智能文档助手. 专为学习设计.</p>
         </div>
     </footer>
+
+    </div>
     
     <!-- JavaScript -->
-    <script>
-        // Netlify环境变量注入（生产环境）
-        window.NETLIFY_API_BASE_URL = "https://api.st0722.top/v1";
-        window.NETLIFY_API_KEY = "sk-2ucC4n6e2m2HiYTZhpXk964gIaSLuOqpR8OUhYp7TJarde0Q";
-        console.log('🔧 环境变量已设置');
-    </script>
+    <script src="config.js"></script>
     <script src="script.js"></script>
 </body>
->>>>>>> Stashed changes
+</html>

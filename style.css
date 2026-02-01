@@ -10,14 +10,408 @@
     box-sizing: border-box;
 }
 
+:root {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f7f7f8;
+    --border: #e6e6e6;
+    --text: #0f172a;
+    --muted: #6b7280;
+    --primary: #111827;
+    --focus: rgba(17, 24, 39, 0.2);
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --max-content: 760px;
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     line-height: 1.6;
-    color: #2D2A26;
+    color: var(--text);
+    background: var(--bg);
 }
 
 h1, h2, h3, h4 {
     font-family: 'Crimson Pro', serif;
+}
+
+.ui-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.ui-app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.ui-topbar {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+}
+
+.ui-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.ui-brand-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: var(--text);
+    color: var(--bg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.ui-container {
+    width: min(var(--max-content), 100%);
+    margin: 0 auto;
+}
+
+.ui-main {
+    flex: 1;
+    padding: 72px 20px 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ui-empty {
+    text-align: center;
+}
+
+.ui-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 32px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+}
+
+.ui-subtitle {
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.ui-chat {
+    width: min(var(--max-content), 100%);
+    margin: 0 auto;
+    padding: 24px 20px 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.ui-message-row {
+    display: flex;
+}
+
+.ui-message-row.user {
+    justify-content: flex-end;
+}
+
+.ui-message {
+    max-width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    text-align: left;
+}
+
+.ui-message.user {
+    background: var(--surface-2);
+}
+
+.ui-message-meta {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.ui-action {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ui-action:hover {
+    background: var(--surface-2);
+}
+
+.ui-action:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px var(--focus);
+}
+
+.ui-composer-shell {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 16px 20px 22px;
+    background: linear-gradient(to top, rgba(255, 255, 255, 0.96) 60%, rgba(255, 255, 255, 0));
+}
+
+.ui-composer {
+    width: min(var(--max-content), 100%);
+    margin: 0 auto;
+}
+
+.ui-composer-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+    padding: 12px 12px 10px;
+}
+
+.ui-composer-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ui-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    line-height: 20px;
+    padding: 8px 10px;
+    background: transparent;
+    color: var(--text);
+}
+
+.ui-input::placeholder {
+    color: rgba(107, 114, 128, 0.7);
+}
+
+.ui-icon-btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 999px;
+    height: 34px;
+    padding: 0 12px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ui-icon-btn:hover {
+    background: var(--surface-2);
+}
+
+.ui-icon-btn.primary {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+}
+
+.ui-icon-btn.primary:hover {
+    background: rgba(15, 23, 42, 0.92);
+}
+
+.ui-icon-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px var(--focus);
+}
+
+.ui-action:disabled,
+.ui-icon-btn:disabled,
+.ui-chip:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.ui-action:disabled:hover,
+.ui-icon-btn:disabled:hover,
+.ui-chip:disabled:hover {
+    background: var(--surface);
+}
+
+.ui-chips {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ui-chip {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 999px;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ui-chip:hover {
+    background: var(--surface-2);
+}
+
+.ui-chip.active {
+    border-color: rgba(17, 24, 39, 0.35);
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.08);
+}
+
+.ui-suggestions {
+    margin-top: 18px;
+    text-align: left;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--surface);
+}
+
+.ui-suggestion {
+    appearance: none;
+    width: 100%;
+    text-align: left;
+    border: none;
+    border-top: 1px solid var(--border);
+    background: transparent;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.ui-suggestion:first-child {
+    border-top: none;
+}
+
+.ui-suggestion:hover {
+    background: var(--surface-2);
+}
+
+.ui-suggestion:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.12);
+}
+
+.ui-panel {
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    padding: 14px;
+    text-align: left;
+}
+
+.ui-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ui-field {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 12px;
+    align-items: start;
+}
+
+.ui-field-label {
+    padding-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.ui-field-control :is(select, textarea, input[type="text"]) {
+    margin-top: 0;
+}
+
+.ui-form-note {
+    margin-top: 0;
+    padding-left: 108px;
+}
+
+.ui-form-meta {
+    padding-left: 108px;
+}
+
+.ui-form-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-left: 108px;
+}
+
+.ui-panel label {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.ui-panel select,
+.ui-panel textarea,
+.ui-panel input[type="text"] {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    margin-top: 10px;
+}
+
+.ui-panel select:focus-visible,
+.ui-panel textarea:focus-visible,
+.ui-panel input[type="text"]:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.12);
+}
+
+.ui-hidden {
+    display: none !important;
 }
 
 /* ========================================
@@ -356,6 +750,41 @@ h1, h2, h3, h4 {
         right: 16px;
         left: 16px;
         max-width: none;
+    }
+
+    .ui-topbar {
+        padding: 0 14px;
+    }
+
+    .ui-title {
+        font-size: 26px;
+    }
+
+    .ui-main {
+        padding: 56px 14px 120px;
+    }
+
+    .ui-chat {
+        padding: 16px 14px 140px;
+    }
+
+    .ui-composer-shell {
+        padding: 12px 14px 18px;
+    }
+
+    .ui-field {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .ui-field-label {
+        padding-top: 0;
+    }
+
+    .ui-form-note,
+    .ui-form-meta,
+    .ui-form-actions {
+        padding-left: 0;
     }
 }
 
