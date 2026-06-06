@@ -127,7 +127,7 @@ nano config.js
 
 ```javascript
 window.LOCAL_API_CONFIG = {
-    baseURL: 'https://api.st0722.top/v1',  // API 基础地址
+    baseURL: 'https://api.chatst.org/v1',  // API 基础地址
     apiKey: 'your-api-key-here'             // 替换为你的 API 密钥
 };
 
@@ -180,7 +180,7 @@ php -S localhost:8000
    - `Site settings` → `Environment variables`
    - 添加以下变量：
      ```
-     API_BASE_URL = https://api.st0722.top/v1
+     API_BASE_URL = https://api.chatst.org/v1
      API_KEY = your-api-key-here
      MINERU_API_TOKEN = your-mineru-token
      ```
@@ -273,9 +273,8 @@ OCR 统一使用 MinerU 精准解析接口，默认模型版本为 `vlm`。作�
 
 | 模型 | 速度 | 质量 | 适用场景 |
 |------|------|------|----------|
-| `GPT-OSS-120B` | ⚡⚡⚡ | ⭐⭐⭐⭐ | 快速批改（推荐）|
-| `enterprise-gpt-5` | ⚡⚡ | ⭐⭐⭐⭐⭐ | 高质量批改 |
-| `enterprise-gemini-2.5-pro` | ⚡ | ⭐⭐⭐⭐⭐ | 深度分析 |
+| `deepseek-v4-flash` | ⚡⚡⚡ | ⭐⭐⭐⭐ | 快速批改（推荐）|
+| `mimo-v2.5` | ⚡⚡ | ⭐⭐⭐⭐⭐ | 高质量批改 |
 
 ---
 
@@ -316,7 +315,7 @@ OCR 统一使用 MinerU 精准解析接口，默认模型版本为 `vlm`。作�
    - 作文部分已自动填入 **"学生作文"** 框
 
 4. **开始批改**
-   - 选择批改模型（推荐 GPT-OSS-120B）
+   - 选择批改模型（推荐 deepseek-v4-flash）
    - 点击 **"开始批改"**
    - 等待 10-15 秒
 
@@ -374,7 +373,7 @@ OCR 统一使用 MinerU 精准解析接口，默认模型版本为 `vlm`。作�
    - 手动调整如有识别错误
 
 4. **开始批改**
-   - 选择批改模型（推荐 GPT-OSS-120B）
+   - 选择批改模型（推荐 deepseek-v4-flash）
    - 点击 **"开始批改"**
    - 等待 15-20 秒
 
@@ -452,8 +451,8 @@ OCR 统一使用 MinerU 精准解析接口，默认模型版本为 `vlm`。作�
 
 ### AI 模型
 
-- **视觉模型** - Gemini Flash、Qwen3-VL、GPT-5 Mini
-- **语言模型** - GPT-OSS、GPT-5、Gemini 2.5 Pro
+- **OCR 模型** - MinerU 精准解析（vlm）
+- **语言模型** - deepseek-v4-flash、mimo-v2.5
 
 ### 部署
 

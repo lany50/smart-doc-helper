@@ -8,7 +8,7 @@
 // MINERU_API_TOKEN=your-mineru-token
 
 window.LOCAL_API_CONFIG = {
-    baseURL: 'https://api.st0722.top/v1',
+    baseURL: 'https://api.chatst.org/v1',
     apiKey: 'your-openai-compatible-api-key'
 };
 

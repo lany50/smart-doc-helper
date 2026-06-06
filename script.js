@@ -11,7 +11,7 @@ const API_CONFIG = (() => {
     if (typeof window.NETLIFY_CONFIG !== 'undefined' && window.NETLIFY_CONFIG.apiKey) {
         console.log('🚀 使用Netlify环境变量');
         return {
-            baseURL: window.NETLIFY_CONFIG.baseURL || 'https://api.st0722.top/v1',
+            baseURL: window.NETLIFY_CONFIG.baseURL || 'https://api.chatst.org/v1',
             apiKey: window.NETLIFY_CONFIG.apiKey
         };
     }
@@ -30,7 +30,7 @@ const API_CONFIG = (() => {
 
     console.warn('未找到API配置，将以未配置状态启动');
     return {
-        baseURL: 'https://api.st0722.top/v1',
+        baseURL: 'https://api.chatst.org/v1',
         apiKey: ''  // 空密钥，会导致API调用失败
     };
 })();
@@ -797,9 +797,9 @@ function initEssayMode() {
 
             // 根据模型估算时间
             let estimatedTime = '10-15 秒';
-            if (model === 'GPT-OSS-120B') {
+            if (model === 'deepseek-v4-flash') {
                 estimatedTime = '5-10 秒';
-            } else if (model === 'enterprise-gemini-2.5-pro') {
+            } else if (model === 'mimo-v2.5') {
                 estimatedTime = '15-20 秒';
             }
             gradingTimeEst.textContent = `预计需要 ${estimatedTime}`;

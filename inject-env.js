@@ -19,7 +19,7 @@ const envScript = `
 <script>
 // Netlify环境变量注入
 window.NETLIFY_CONFIG = {
-    baseURL: '${process.env.API_BASE_URL || 'https://api.st0722.top/v1'}',
+    baseURL: '${process.env.API_BASE_URL || 'https://api.chatst.org/v1'}',
     apiKey: '${process.env.API_KEY || ''}'
 };
 console.log('✅ 环境变量已加载');
