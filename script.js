@@ -463,7 +463,9 @@ function initEssayMode() {
     const ocrResult = document.getElementById('essayOcrResult');
 
     // OCR结果区
+    const ocrTopicTextarea = document.getElementById('essayOcrTopic');
     const ocrResultTextarea = document.getElementById('essayContent');
+    const rawOcrTextarea = document.getElementById('essayRawOcrText');
     const wordCount = document.getElementById('essayWordCount');
     const wordHint = document.getElementById('essayWordHint');
     const sendBtn = document.getElementById('sendToGradeBtn');
@@ -609,21 +611,35 @@ function initEssayMode() {
             }
 
             // 完成
-            progressText.textContent = '识别完成！';
+            progressText.textContent = '正在自动拆分题目和作文...';
 
             // 合并所有识别结果
             const mergedText = ocrResults.join('\n\n---\n\n');
+            const splitModel = gradingModel ? gradingModel.value : 'deepseek-v4-flash';
+            let splitResult = null;
+            let splitError = null;
+            try {
+                splitResult = await splitApplicationOcrText(mergedText, splitModel);
+            } catch (error) {
+                console.warn('应用文OCR拆分失败:', error);
+                splitError = error;
+            }
 
             setTimeout(() => {
                 progressDiv.classList.add('hidden');
 
-                // 全部显示在一个文本框中
-                ocrResultTextarea.value = mergedText;
-                updateWordCount(mergedText, wordCount, wordHint);
-                sendBtn.disabled = !mergedText.trim();
+                const topicText = splitResult?.topic || '';
+                const essayText = splitResult?.essay || mergedText;
+
+                ocrTopicTextarea.value = topicText;
+                ocrResultTextarea.value = essayText;
+                rawOcrTextarea.value = mergedText;
+                syncApplicationOcrToGrading();
+                updateWordCount(essayText, wordCount, wordHint);
+                sendBtn.disabled = !essayText.trim();
 
                 ocrResult.classList.remove('hidden');
-                showToast(`成功识别 ${uploadedImages.length} 张图片`, 'success');
+                showToast(splitError ? '识别完成，AI拆分失败，请手动调整' : `成功识别并拆分 ${uploadedImages.length} 个文件`, splitError ? 'error' : 'success');
 
                 // 清空图片列表
                 uploadedImages = [];
@@ -658,7 +674,9 @@ function initEssayMode() {
 
     // 清空按钮
     clearEssayBtn.addEventListener('click', () => {
+        ocrTopicTextarea.value = '';
         ocrResultTextarea.value = '';
+        rawOcrTextarea.value = '';
         wordCount.textContent = '字数: 0 词';
         wordHint.textContent = '建议: 80词左右';
         sendBtn.disabled = true;
@@ -670,24 +688,26 @@ function initEssayMode() {
         sendBtn.disabled = !ocrResultTextarea.value.trim();
     });
 
+    ocrTopicTextarea.addEventListener('input', () => {
+        sendBtn.disabled = !ocrResultTextarea.value.trim();
+    });
+
+    function syncApplicationOcrToGrading() {
+        gradingTopic.value = ocrTopicTextarea.value.trim();
+        gradingEssay.value = ocrResultTextarea.value.trim();
+
+        const count = countWords(gradingEssay.value);
+        gradingWordCount.textContent = count;
+
+        gradingTopic.dispatchEvent(new Event('input'));
+        gradingEssay.dispatchEvent(new Event('input'));
+    }
+
     // 发送到批改区
     sendBtn.addEventListener('click', () => {
-        const fullText = ocrResultTextarea.value;
-
-        if (confirm('📤 发送到批改区\n\n识别结果将复制到作文框。\n请您手动将题目部分复制到"题目要求"框中。\n\n点击确定继续。')) {
-            gradingTopic.value = '';
-            gradingEssay.value = fullText;
-
-            const count = countWords(gradingEssay.value);
-            gradingWordCount.textContent = count;
-
-            // 更新字数状态
-            gradingEssay.dispatchEvent(new Event('input'));
-
-            // 滚动到批改区
-            document.querySelector('#gradingInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
-            showToast('已发送！请将题目部分复制到"题目要求"框', 'success');
-        }
+        syncApplicationOcrToGrading();
+        document.querySelector('#gradingInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast('已同步到批改区', 'success');
     });
 
     // ========== 批改区部分 ==========
@@ -1032,6 +1052,7 @@ function initContinuationMode() {
     const topicTextarea = document.getElementById('continuationTopic');
     const originalTextarea = document.getElementById('continuationOriginal');
     const contentTextarea = document.getElementById('continuationContent');
+    const rawOcrTextarea = document.getElementById('continuationRawOcrText');
     const wordCount = document.getElementById('continuationWordCount');
     const wordHint = document.getElementById('continuationWordHint');
     const sendBtn = document.getElementById('sendToContinuationGradeBtn');
@@ -1171,22 +1192,33 @@ function initContinuationMode() {
             }
 
             // 完成
-            progressText.textContent = '识别完成！';
+            progressText.textContent = '正在自动拆分题目、原文和续写...';
+            const mergedText = ocrResults.join('\n\n---\n\n');
+            const splitModel = gradingModel ? gradingModel.value : 'deepseek-v4-flash';
+            let splitResult = null;
+            let splitError = null;
+            try {
+                splitResult = await splitContinuationOcrText(mergedText, splitModel);
+            } catch (error) {
+                console.warn('读后续写OCR拆分失败:', error);
+                splitError = error;
+            }
 
             setTimeout(() => {
                 progressDiv.classList.add('hidden');
 
-                // 分别显示在三个文本框中
-                if (ocrResults.length >= 1) topicTextarea.value = ocrResults[0];
-                if (ocrResults.length >= 2) originalTextarea.value = ocrResults[1];
-                if (ocrResults.length >= 3) contentTextarea.value = ocrResults[2];
+                topicTextarea.value = splitResult?.topic || ocrResults[0] || '';
+                originalTextarea.value = splitResult?.original || ocrResults[1] || '';
+                contentTextarea.value = splitResult?.continuation || ocrResults[2] || '';
+                rawOcrTextarea.value = mergedText;
 
                 // 更新字数统计
                 updateWordCount(contentTextarea.value, wordCount, wordHint);
                 sendBtn.disabled = !contentTextarea.value.trim();
+                syncContinuationOcrToGrading();
 
                 ocrResult.classList.remove('hidden');
-                showToast(`成功识别 ${continuationImages.length} 张图片`, 'success');
+                showToast(splitError ? '识别完成，AI拆分失败，请手动调整' : `成功识别并拆分 ${continuationImages.length} 个文件`, splitError ? 'error' : 'success');
 
                 // 清空图片列表
                 continuationImages = [];
@@ -1208,23 +1240,32 @@ function initContinuationMode() {
         sendBtn.disabled = !contentTextarea.value.trim();
     });
 
+    topicTextarea.addEventListener('input', () => {
+        sendBtn.disabled = !contentTextarea.value.trim();
+    });
+
+    originalTextarea.addEventListener('input', () => {
+        sendBtn.disabled = !contentTextarea.value.trim();
+    });
+
+    function syncContinuationOcrToGrading() {
+        gradingTopic.value = topicTextarea.value.trim();
+        gradingOriginal.value = originalTextarea.value.trim();
+        gradingContent.value = contentTextarea.value.trim();
+
+        const count = countWords(gradingContent.value);
+        gradingWordCount.textContent = count;
+
+        gradingTopic.dispatchEvent(new Event('input'));
+        gradingOriginal.dispatchEvent(new Event('input'));
+        gradingContent.dispatchEvent(new Event('input'));
+    }
+
     // 发送到批改区
     sendBtn.addEventListener('click', () => {
-        if (confirm('📤 发送到批改区\n\n识别结果将复制到批改区。\n\n点击确定继续。')) {
-            gradingTopic.value = topicTextarea.value;
-            gradingOriginal.value = originalTextarea.value;
-            gradingContent.value = contentTextarea.value;
-
-            const count = countWords(gradingContent.value);
-            gradingWordCount.textContent = count;
-
-            // 更新字数状态
-            gradingContent.dispatchEvent(new Event('input'));
-
-            // 滚动到批改区
-            document.querySelector('#continuationGradingInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
-            showToast('已发送到批改区', 'success');
-        }
+        syncContinuationOcrToGrading();
+        document.querySelector('#continuationGradingInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast('已同步到批改区', 'success');
     });
 
     // ========== 批改区部分 ==========
@@ -1546,6 +1587,96 @@ async function callMineruOCR(file, model = 'mineru-vlm') {
         model: data.model || 'mineru-vlm',
         fileName: data.fileName || file.name
     };
+}
+
+async function splitApplicationOcrText(rawText, model = 'deepseek-v4-flash') {
+    const prompt = `你是一个高考英语作文 OCR 文本整理助手。请只根据 OCR 原文，把内容拆成题目要求和学生作文。
+
+要求：
+1. 只输出 JSON，不要 Markdown，不要解释。
+2. JSON 必须是：{"topic":"...","essay":"..."}
+3. topic 放题目、写作背景、任务要求、注意事项等。
+4. essay 放学生已经写出的作文正文。
+5. 不要改写、润色或纠错，只做拆分和去除明显的 OCR 分隔符。
+6. 如果无法判断题目，topic 用空字符串；如果无法判断作文，essay 放主要正文。
+
+OCR 原文：
+${rawText}`;
+
+    const json = await callJsonCompletion(prompt, model, 1400);
+    return {
+        topic: typeof json.topic === 'string' ? json.topic.trim() : '',
+        essay: typeof json.essay === 'string' ? json.essay.trim() : ''
+    };
+}
+
+async function splitContinuationOcrText(rawText, model = 'deepseek-v4-flash') {
+    const prompt = `你是一个高考英语读后续写 OCR 文本整理助手。请只根据 OCR 原文，把内容拆成题目要求、原文内容和学生续写。
+
+要求：
+1. 只输出 JSON，不要 Markdown，不要解释。
+2. JSON 必须是：{"topic":"...","original":"...","continuation":"..."}
+3. topic 放题目说明、续写要求、给定首句、注意事项等。
+4. original 放阅读原文、故事背景、原文段落。
+5. continuation 放学生已经写出的续写内容。
+6. 不要改写、润色或纠错，只做拆分和去除明显的 OCR 分隔符。
+7. 如果无法判断某一段，对应字段用空字符串；尽量不要丢失原文信息。
+
+OCR 原文：
+${rawText}`;
+
+    const json = await callJsonCompletion(prompt, model, 1800);
+    return {
+        topic: typeof json.topic === 'string' ? json.topic.trim() : '',
+        original: typeof json.original === 'string' ? json.original.trim() : '',
+        continuation: typeof json.continuation === 'string' ? json.continuation.trim() : ''
+    };
+}
+
+async function callJsonCompletion(prompt, model, maxTokens) {
+    if (!API_CONFIG || !API_CONFIG.apiKey) {
+        throw new Error('API 未配置，无法自动拆分 OCR 文本');
+    }
+
+    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_CONFIG.apiKey}`
+        },
+        body: JSON.stringify({
+            model,
+            messages: [{
+                role: 'user',
+                content: prompt
+            }],
+            max_tokens: maxTokens,
+            temperature: 0.1
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error?.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    return parseJsonObject(content);
+}
+
+function parseJsonObject(output) {
+    const trimmed = String(output || '').trim();
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidate = fenced ? fenced[1].trim() : trimmed;
+
+    try {
+        return JSON.parse(candidate);
+    } catch {
+        const jsonMatch = candidate.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('AI 拆分结果不是 JSON');
+        return JSON.parse(jsonMatch[0]);
+    }
 }
 
 // 批改作文

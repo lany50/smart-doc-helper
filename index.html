@@ -199,35 +199,44 @@
 
                         <!-- 识别结果 -->
                         <div id="essayOcrResult" class="hidden flex-1 flex flex-col min-h-0">
-                            <div class="flex-1 flex flex-col min-h-0 mb-3">
-                                <div class="flex items-center justify-between mb-2 flex-shrink-0">
-                                    <label class="text-sm font-medium text-[#3A3632]">✏️ 识别结果（全部文本）</label>
-                                    <div class="flex gap-2">
+                            <div class="ocr-split-grid flex-1 min-h-0 mb-3">
+                                <div class="ocr-edit-field">
+                                    <div class="flex items-center justify-between mb-2 flex-shrink-0">
+                                        <label class="text-sm font-medium text-[#3A3632]">📌 题目要求</label>
+                                    </div>
+                                    <textarea id="essayOcrTopic" class="ocr-textarea ocr-topic-textarea" placeholder="AI 会自动从 OCR 结果中拆出题目要求，可手动编辑..."></textarea>
+                                </div>
+
+                                <div class="ocr-edit-field">
+                                    <div class="flex items-center justify-between mb-2 flex-shrink-0">
+                                        <label class="text-sm font-medium text-[#3A3632]">✍️ 学生作文</label>
                                         <button id="copyAllBtn" class="text-xs px-2 py-1 bg-[#E07B39] text-white rounded hover:bg-[#D87645] transition-all">
-                                            📋 全部复制
-                                        </button>
-                                        <button id="clearEssayBtn" class="text-xs px-2 py-1 text-[#E07B39] hover:underline">
-                                            🗑️ 清空
+                                            📋 复制作文
                                         </button>
                                     </div>
+                                    <textarea id="essayContent" class="ocr-textarea ocr-essay-textarea" placeholder="AI 会自动从 OCR 结果中拆出学生作文，可手动编辑..."></textarea>
+                                    <div class="flex justify-between items-center mt-1 flex-shrink-0">
+                                        <span id="essayWordCount" class="text-xs text-[#3A3632] opacity-60">字数: 0 词</span>
+                                        <span id="essayWordHint" class="text-xs text-[#3A3632] opacity-60">建议: 80词左右</span>
+                                    </div>
                                 </div>
-                                <textarea id="essayContent" class="flex-1 w-full px-3 py-2 border border-[#F4A261]/30 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#E07B39] resize-none min-h-[150px]" placeholder="所有识别内容将显示在这里，可手动编辑..."></textarea>
-                                <div class="flex justify-between items-center mt-1 flex-shrink-0">
-                                    <span id="essayWordCount" class="text-xs text-[#3A3632] opacity-60">字数: 0 词</span>
-                                    <span id="essayWordHint" class="text-xs text-[#3A3632] opacity-60">建议: 80词左右</span>
-                                </div>
+
+                                <details class="ocr-raw-details">
+                                    <summary>查看原始 OCR 全文</summary>
+                                    <textarea id="essayRawOcrText" class="ocr-raw-textarea" readonly></textarea>
+                                </details>
                             </div>
 
-                            <button id="sendToGradeBtn" class="w-full py-3 bg-gradient-to-r from-[#E07B39] to-[#F4A261] text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-3 flex-shrink-0" disabled>
-                                ➡️ 发送到批改区
-                            </button>
-
-                            <div class="bg-[#FFF9F0] rounded-lg p-3 text-xs text-[#3A3632] flex-shrink-0">
-                                💡 <strong>使用提示：</strong><br>
-                                1. 检查OCR识别结果<br>
-                                2. 点击"发送到批改区"<br>
-                                3. 在右侧手动分配题目和作文
+                            <div class="ocr-action-bar">
+                                <button id="sendToGradeBtn" class="flex-1 py-3 bg-gradient-to-r from-[#E07B39] to-[#F4A261] text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    ➡️ 同步到批改区
+                                </button>
+                                <button id="clearEssayBtn" class="px-4 py-3 bg-white text-[#E07B39] border border-[#E07B39]/40 rounded-xl text-sm hover:bg-[#FFF9F0] transition-all">
+                                    清空
+                                </button>
                             </div>
+
+                            <div class="ocr-status-note">AI 会自动拆分题目和作文；拆分不准时可直接在上方编辑。</div>
                         </div>
                     </div>
 
@@ -419,7 +428,7 @@
                                             📋 复制
                                         </button>
                                     </div>
-                                    <textarea id="continuationTopic" class="flex-1 w-full px-3 py-2 border border-[#F4A261]/30 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#E07B39] resize-none min-h-[80px]" placeholder="题目要求..."></textarea>
+                                    <textarea id="continuationTopic" class="ocr-textarea continuation-topic-textarea" placeholder="题目要求..."></textarea>
                                 </div>
 
                                 <!-- 原文 -->
@@ -430,7 +439,7 @@
                                             📋 复制
                                         </button>
                                     </div>
-                                    <textarea id="continuationOriginal" class="flex-1 w-full px-3 py-2 border border-[#F4A261]/30 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#E07B39] resize-none min-h-[80px]" placeholder="原文内容..."></textarea>
+                                    <textarea id="continuationOriginal" class="ocr-textarea continuation-original-textarea" placeholder="原文内容..."></textarea>
                                 </div>
 
                                 <!-- 续写 -->
@@ -441,7 +450,7 @@
                                             📋 复制
                                         </button>
                                     </div>
-                                    <textarea id="continuationContent" class="flex-1 w-full px-3 py-2 border border-[#F4A261]/30 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#E07B39] resize-none min-h-[80px]" placeholder="续写内容..."></textarea>
+                                    <textarea id="continuationContent" class="ocr-textarea continuation-content-textarea" placeholder="续写内容..."></textarea>
                                     <div class="flex justify-between items-center mt-1 flex-shrink-0">
                                         <span id="continuationWordCount" class="text-xs text-[#3A3632] opacity-60">字数: 0 词</span>
                                         <span id="continuationWordHint" class="text-xs text-[#3A3632] opacity-60">建议: 130词以上</span>
@@ -449,16 +458,18 @@
                                 </div>
                             </div>
 
-                            <button id="sendToContinuationGradeBtn" class="w-full py-3 bg-gradient-to-r from-[#E07B39] to-[#F4A261] text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0" disabled>
-                                ➡️ 发送到批改区
-                            </button>
+                            <details class="ocr-raw-details mt-3">
+                                <summary>查看原始 OCR 全文</summary>
+                                <textarea id="continuationRawOcrText" class="ocr-raw-textarea" readonly></textarea>
+                            </details>
 
-                            <div class="bg-[#FFF9F0] rounded-lg p-3 text-xs text-[#3A3632] flex-shrink-0 mt-3">
-                                💡 <strong>使用提示：</strong><br>
-                                1. 检查OCR识别结果<br>
-                                2. 点击"发送到批改区"<br>
-                                3. 在右侧进行AI批改
+                            <div class="ocr-action-bar mt-3">
+                                <button id="sendToContinuationGradeBtn" class="flex-1 py-3 bg-gradient-to-r from-[#E07B39] to-[#F4A261] text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    ➡️ 同步到批改区
+                                </button>
                             </div>
+
+                            <div class="ocr-status-note">AI 会自动拆分题目、原文和续写；拆分不准时可直接编辑。</div>
                         </div>
                     </div>
 
@@ -590,7 +601,6 @@
 
     <!-- JavaScript -->
     <script src="config.js"></script>
-
     <script src="script.js"></script>
 </body>
 </html>
