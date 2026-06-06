@@ -15,19 +15,19 @@ const API_CONFIG = (() => {
             apiKey: window.NETLIFY_CONFIG.apiKey
         };
     }
-    
+
     // 优先级2: 本地配置文件（开发环境）
     if (typeof window.LOCAL_API_CONFIG !== 'undefined') {
         console.log('💻 使用本地配置文件');
         return window.LOCAL_API_CONFIG;
     }
-    
+
     // 优先级3: 从老版本config.js读取（兼容）
     if (typeof window.API_CONFIG !== 'undefined' && window.API_CONFIG && window.API_CONFIG.apiKey) {
         console.log('💻 使用兼容配置');
         return window.API_CONFIG;
     }
-    
+
     console.warn('未找到API配置，将以未配置状态启动');
     return {
         baseURL: 'https://api.st0722.top/v1',
@@ -259,696 +259,12 @@ const CONTINUATION_GUIDANCE_PROMPT = `你是一名精通中国高考英语读后
 // 全局变量
 let uploadedImages = []; // 存储上传的图片
 let ocrResults = []; // 存储OCR结果
-let newSelectedImages = [];
+const MINERU_OCR_ENDPOINT = '/.netlify/functions/mineru-ocr';
 
 // 等待DOM加载完成
 document.addEventListener('DOMContentLoaded', function() {
-    initNewPanels();
-    initNewChatApp();
     initApp();
 });
-
-function initNewPanels() {
-    const app = document.getElementById('app');
-    const legacyApp = document.getElementById('legacyApp');
-    const openLegacyBtn = document.getElementById('openLegacyBtn');
-    const hideLegacyBtn = document.getElementById('hideLegacyBtn');
-
-    if (openLegacyBtn && hideLegacyBtn && app && legacyApp) {
-        openLegacyBtn.addEventListener('click', () => {
-            legacyApp.classList.remove('ui-hidden');
-            app.classList.add('ui-hidden');
-            openLegacyBtn.classList.add('ui-hidden');
-            hideLegacyBtn.classList.remove('ui-hidden');
-        });
-
-        hideLegacyBtn.addEventListener('click', () => {
-            legacyApp.classList.add('ui-hidden');
-            app.classList.remove('ui-hidden');
-            hideLegacyBtn.classList.add('ui-hidden');
-            openLegacyBtn.classList.remove('ui-hidden');
-        });
-    }
-
-    const composerPanel = document.getElementById('composerPanel');
-    const panelOcr = document.getElementById('panelOcr');
-    const panelEssay = document.getElementById('panelEssay');
-    const panelModel = document.getElementById('panelModel');
-    const panelMore = document.getElementById('panelMore');
-
-    const chipOcr = document.getElementById('chipOcr');
-    const chipEssay = document.getElementById('chipEssay');
-    const chipModel = document.getElementById('chipModel');
-    const chipMore = document.getElementById('chipMore');
-
-    const chips = [
-        { chip: chipOcr, panel: panelOcr },
-        { chip: chipEssay, panel: panelEssay },
-        { chip: chipModel, panel: panelModel },
-        { chip: chipMore, panel: panelMore }
-    ];
-
-    const setActivePanel = (activeChip) => {
-        if (!composerPanel) return;
-        composerPanel.classList.remove('ui-hidden');
-
-        chips.forEach(({ chip, panel }) => {
-            if (!chip || !panel) return;
-            const isActive = chip === activeChip;
-            chip.classList.toggle('active', isActive);
-            panel.classList.toggle('ui-hidden', !isActive);
-        });
-    };
-
-    chips.forEach(({ chip }) => {
-        if (!chip) return;
-        chip.addEventListener('click', () => setActivePanel(chip));
-    });
-
-    if (chipOcr) setActivePanel(chipOcr);
-
-    const apiStatusText = document.getElementById('apiStatusText');
-    if (apiStatusText) {
-        const hasKey = !!(API_CONFIG && API_CONFIG.apiKey);
-        apiStatusText.textContent = hasKey
-            ? `API 已配置：${API_CONFIG.baseURL}`
-            : 'API 未配置：请创建 config.js 或设置部署环境变量';
-    }
-
-    const attachBtn = document.getElementById('attachBtn');
-    const fileInput = document.getElementById('fileInput');
-    const ocrFileHint = document.getElementById('ocrFileHint');
-    const ocrFileList = document.getElementById('ocrFileList');
-    const ocrClearBtn = document.getElementById('ocrClearBtn');
-
-    const renderOcrFiles = () => {
-        if (!ocrFileList || !ocrFileHint) return;
-        if (newSelectedImages.length === 0) {
-            ocrFileHint.textContent = '点击 Attach 选择图片后再开始识别';
-            ocrFileList.classList.add('ui-hidden');
-            ocrFileList.innerHTML = '';
-            return;
-        }
-
-        ocrFileHint.textContent = `已选择 ${newSelectedImages.length} 张图片`;
-        ocrFileList.classList.remove('ui-hidden');
-        ocrFileList.innerHTML = newSelectedImages
-            .map((file, index) => {
-                const safeName = String(file.name || `image-${index + 1}`).replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-                return `<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);">
-                    <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${safeName}</div>
-                    <button class="ui-action" type="button" data-remove="${index}">移除</button>
-                </div>`;
-            })
-            .join('');
-
-        const removeButtons = ocrFileList.querySelectorAll('[data-remove]');
-        removeButtons.forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const i = Number(btn.getAttribute('data-remove'));
-                newSelectedImages = newSelectedImages.filter((_, idx) => idx !== i);
-                renderOcrFiles();
-            });
-        });
-    };
-
-    if (attachBtn && fileInput) {
-        attachBtn.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files || []);
-            const valid = files.filter((f) => validateImageFile(f, true));
-            if (valid.length === 0) return;
-            newSelectedImages = valid;
-            renderOcrFiles();
-        });
-    }
-
-    if (ocrClearBtn) {
-        ocrClearBtn.addEventListener('click', () => {
-            newSelectedImages = [];
-            if (fileInput) fileInput.value = '';
-            renderOcrFiles();
-        });
-    }
-
-    const essayTypeSelect = document.getElementById('essayTypeSelect');
-    const essayOriginalWrap = document.getElementById('essayOriginalWrap');
-    const essayTextLabel = document.getElementById('essayTextLabel');
-    const essayTextInput = document.getElementById('essayTextInput');
-    const essayWordCountText = document.getElementById('essayWordCountText');
-
-    const updateEssayPanel = () => {
-        const type = essayTypeSelect ? essayTypeSelect.value : 'application';
-        if (essayOriginalWrap) essayOriginalWrap.classList.toggle('ui-hidden', type !== 'continuation');
-        if (essayTextLabel) essayTextLabel.textContent = type === 'continuation' ? '续写内容' : '学生作文';
-        if (essayTextInput && essayWordCountText) essayWordCountText.textContent = String(countWords(essayTextInput.value || ''));
-    };
-
-    if (essayTypeSelect) essayTypeSelect.addEventListener('change', updateEssayPanel);
-    if (essayTextInput) essayTextInput.addEventListener('input', updateEssayPanel);
-    updateEssayPanel();
-}
-
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;');
-}
-
-async function copyText(text) {
-    const value = String(text ?? '');
-    try {
-        await navigator.clipboard.writeText(value);
-        showToast('已复制', 'success');
-    } catch {
-        const textarea = document.createElement('textarea');
-        textarea.value = value;
-        textarea.style.position = 'fixed';
-        textarea.style.left = '-9999px';
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-            document.execCommand('copy');
-            showToast('已复制', 'success');
-        } catch {
-            showToast('复制失败', 'error');
-        } finally {
-            document.body.removeChild(textarea);
-        }
-    }
-}
-
-function ensureChatVisible() {
-    const emptyState = document.getElementById('emptyState');
-    const chatState = document.getElementById('chatState');
-    if (emptyState) emptyState.classList.add('ui-hidden');
-    if (chatState) chatState.classList.remove('ui-hidden');
-}
-
-function addChatMessage({ role, text, html, actions = [] }) {
-    const chat = document.getElementById('chat');
-    if (!chat) return null;
-
-    ensureChatVisible();
-
-    const row = document.createElement('div');
-    row.className = `ui-message-row ${role === 'user' ? 'user' : 'assistant'}`;
-
-    const bubble = document.createElement('div');
-    bubble.className = `ui-message ${role === 'user' ? 'user' : 'assistant'}`;
-
-    const content = document.createElement('div');
-    if (html) {
-        content.innerHTML = html;
-    } else {
-        content.style.whiteSpace = 'pre-wrap';
-        content.textContent = text ?? '';
-    }
-    bubble.appendChild(content);
-
-    if (role !== 'user' && actions.length > 0) {
-        const meta = document.createElement('div');
-        meta.className = 'ui-message-meta';
-        actions.forEach((action) => {
-            const btn = document.createElement('button');
-            btn.className = 'ui-action';
-            btn.type = 'button';
-            btn.textContent = action.label;
-            btn.addEventListener('click', action.onClick);
-            meta.appendChild(btn);
-        });
-        bubble.appendChild(meta);
-    }
-
-    row.appendChild(bubble);
-    chat.appendChild(row);
-    row.scrollIntoView({ block: 'end' });
-
-    return {
-        setText(nextText) {
-            content.innerHTML = '';
-            content.style.whiteSpace = 'pre-wrap';
-            content.textContent = nextText ?? '';
-        },
-        setHtml(nextHtml) {
-            content.style.whiteSpace = '';
-            content.innerHTML = nextHtml ?? '';
-        }
-    };
-}
-
-function parseJsonFromOutput(output) {
-    const text = String(output ?? '');
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    try {
-        return JSON.parse(jsonMatch[0]);
-    } catch {
-        return null;
-    }
-}
-
-function formatApplicationGradingHtml(data) {
-    const totalScore = escapeHtml(`${data?.totalScore ?? 0}/15`);
-    const contentScore = escapeHtml(`${data?.scores?.content ?? 0}/5`);
-    const languageScore = escapeHtml(`${data?.scores?.language ?? 0}/7`);
-    const structureScore = escapeHtml(`${data?.scores?.structure ?? 0}/3`);
-    const contentReview = escapeHtml(data?.contentReview ?? '');
-    const suggestions = escapeHtml(data?.suggestions ?? '');
-    const modelAnswer = escapeHtml(data?.modelAnswer ?? '');
-    const tips = escapeHtml(data?.tips ?? '');
-    const highlights = Array.isArray(data?.highlights) ? data.highlights : [];
-    const problems = Array.isArray(data?.problems) ? data.problems : [];
-
-    return `
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <div style="font-weight:600;">应用文批改</div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;">
-                <span>总分：<strong style="color:var(--text);">${totalScore}</strong></span>
-                <span>内容：${contentScore}</span>
-                <span>语言：${languageScore}</span>
-                <span>结构：${structureScore}</span>
-            </div>
-        </div>
-        <div class="grading-card">
-            <h4>✅ 内容点评</h4>
-            <div class="content">${contentReview}</div>
-        </div>
-        <div class="grading-card">
-            <h4>✨ 语言亮点</h4>
-            <div class="content"><ul>${highlights.map(h => `<li>${escapeHtml(h)}</li>`).join('')}</ul></div>
-        </div>
-        <div class="grading-card">
-            <h4>⚠️ 存在问题</h4>
-            <div class="content"><ul>${problems.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul></div>
-        </div>
-        <div class="grading-card">
-            <h4>💡 改进建议</h4>
-            <div class="content">${suggestions}</div>
-        </div>
-        <div class="grading-card model-answer-card">
-            <h4>📖 范文参考</h4>
-            <div class="content">${modelAnswer}</div>
-        </div>
-        <div class="grading-card">
-            <h4>🎯 提分秘诀</h4>
-            <div class="content">${tips}</div>
-        </div>
-    `.trim();
-}
-
-function formatContinuationGradingHtml(data) {
-    const totalScore = escapeHtml(`${data?.totalScore ?? 0}/25`);
-    const contentScore = escapeHtml(`${data?.scores?.content ?? 0}/8`);
-    const languageScore = escapeHtml(`${data?.scores?.language ?? 0}/8`);
-    const vocabularyScore = escapeHtml(`${data?.scores?.vocabulary ?? 0}/5`);
-    const structureScore = escapeHtml(`${data?.scores?.structure ?? 0}/5`);
-    const normScore = escapeHtml(`${data?.scores?.norm ?? 0}/4`);
-    const contentReview = escapeHtml(data?.contentReview ?? '');
-    const suggestions = escapeHtml(data?.suggestions ?? '');
-    const modelAnswer = escapeHtml(data?.modelAnswer ?? '');
-    const tips = escapeHtml(data?.tips ?? '');
-    const highlights = Array.isArray(data?.highlights) ? data.highlights : [];
-    const problems = Array.isArray(data?.problems) ? data.problems : [];
-
-    return `
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <div style="font-weight:600;">读后续写批改</div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;">
-                <span>总分：<strong style="color:var(--text);">${totalScore}</strong></span>
-                <span>内容：${contentScore}</span>
-                <span>语言：${languageScore}</span>
-                <span>词汇：${vocabularyScore}</span>
-                <span>结构：${structureScore}</span>
-                <span>规范：${normScore}</span>
-            </div>
-        </div>
-        <div class="grading-card">
-            <h4>✅ 内容点评</h4>
-            <div class="content">${contentReview}</div>
-        </div>
-        <div class="grading-card">
-            <h4>✨ 语言亮点</h4>
-            <div class="content"><ul>${highlights.map(h => `<li>${escapeHtml(h)}</li>`).join('')}</ul></div>
-        </div>
-        <div class="grading-card">
-            <h4>⚠️ 存在问题</h4>
-            <div class="content"><ul>${problems.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul></div>
-        </div>
-        <div class="grading-card">
-            <h4>💡 改进建议</h4>
-            <div class="content">${suggestions}</div>
-        </div>
-        <div class="grading-card model-answer-card">
-            <h4>📖 范文参考</h4>
-            <div class="content">${modelAnswer}</div>
-        </div>
-        <div class="grading-card">
-            <h4>🎯 提分秘诀</h4>
-            <div class="content">${tips}</div>
-        </div>
-    `.trim();
-}
-
-function applicationGradingToText(data) {
-    const lines = [];
-    lines.push(`总分：${data?.totalScore ?? 0}/15`);
-    lines.push(`内容：${data?.scores?.content ?? 0}/5  语言：${data?.scores?.language ?? 0}/7  结构：${data?.scores?.structure ?? 0}/3`);
-    lines.push('');
-    lines.push('内容点评：');
-    lines.push(String(data?.contentReview ?? ''));
-    lines.push('');
-    lines.push('语言亮点：');
-    (Array.isArray(data?.highlights) ? data.highlights : []).forEach((h) => lines.push(`- ${h}`));
-    lines.push('');
-    lines.push('存在问题：');
-    (Array.isArray(data?.problems) ? data.problems : []).forEach((p) => lines.push(`- ${p}`));
-    lines.push('');
-    lines.push('改进建议：');
-    lines.push(String(data?.suggestions ?? ''));
-    lines.push('');
-    lines.push('范文参考：');
-    lines.push(String(data?.modelAnswer ?? ''));
-    lines.push('');
-    lines.push('提分秘诀：');
-    lines.push(String(data?.tips ?? ''));
-    return lines.join('\n');
-}
-
-function continuationGradingToText(data) {
-    const lines = [];
-    lines.push(`总分：${data?.totalScore ?? 0}/25`);
-    lines.push(`内容：${data?.scores?.content ?? 0}/8  语言：${data?.scores?.language ?? 0}/8  词汇：${data?.scores?.vocabulary ?? 0}/5  结构：${data?.scores?.structure ?? 0}/5  规范：${data?.scores?.norm ?? 0}/4`);
-    lines.push('');
-    lines.push('内容点评：');
-    lines.push(String(data?.contentReview ?? ''));
-    lines.push('');
-    lines.push('语言亮点：');
-    (Array.isArray(data?.highlights) ? data.highlights : []).forEach((h) => lines.push(`- ${h}`));
-    lines.push('');
-    lines.push('存在问题：');
-    (Array.isArray(data?.problems) ? data.problems : []).forEach((p) => lines.push(`- ${p}`));
-    lines.push('');
-    lines.push('改进建议：');
-    lines.push(String(data?.suggestions ?? ''));
-    lines.push('');
-    lines.push('范文参考：');
-    lines.push(String(data?.modelAnswer ?? ''));
-    lines.push('');
-    lines.push('提分秘诀：');
-    lines.push(String(data?.tips ?? ''));
-    return lines.join('\n');
-}
-
-function initNewChatApp() {
-    const chatInput = document.getElementById('chatInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const ocrStartBtn = document.getElementById('ocrStartBtn');
-    const ocrModelSelect = document.getElementById('ocrModelSelect');
-    const ocrClearBtn = document.getElementById('ocrClearBtn');
-    const essayGuidanceBtn = document.getElementById('essayGuidanceBtn');
-    const essayGradeBtn = document.getElementById('essayGradeBtn');
-    const essayTypeSelect = document.getElementById('essayTypeSelect');
-    const essayTopicInput = document.getElementById('essayTopicInput');
-    const essayTextInput = document.getElementById('essayTextInput');
-    const essayOriginalInput = document.getElementById('essayOriginalInput');
-    const textModelSelect = document.getElementById('textModelSelect');
-    const openSettingsBtn = document.getElementById('openSettingsBtn');
-
-    const chipOcr = document.getElementById('chipOcr');
-    const chipEssay = document.getElementById('chipEssay');
-    const chipModel = document.getElementById('chipModel');
-    const chipMore = document.getElementById('chipMore');
-
-    const suggestionButtons = document.querySelectorAll('.ui-suggestion');
-    suggestionButtons.forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const type = btn.getAttribute('data-suggest');
-            if (type === 'ocr_single' || type === 'ocr_multi') {
-                if (chipOcr) chipOcr.click();
-                const attachBtn = document.getElementById('attachBtn');
-                if (attachBtn) attachBtn.click();
-                return;
-            }
-            if (type === 'essay_app') {
-                if (chipEssay) chipEssay.click();
-                if (essayTypeSelect) essayTypeSelect.value = 'application';
-                if (essayTopicInput) essayTopicInput.focus();
-                return;
-            }
-            if (type === 'essay_cont') {
-                if (chipEssay) chipEssay.click();
-                if (essayTypeSelect) essayTypeSelect.value = 'continuation';
-                if (essayTopicInput) essayTopicInput.focus();
-            }
-        });
-    });
-
-    if (openSettingsBtn && chipMore) {
-        openSettingsBtn.addEventListener('click', () => chipMore.click());
-    }
-
-    const requireApiKey = () => {
-        if (!API_CONFIG || !API_CONFIG.apiKey) {
-            showToast('API 未配置：请创建 config.js 或设置环境变量', 'error');
-            return false;
-        }
-        return true;
-    };
-
-    const setBusy = (busy) => {
-        const attachBtn = document.getElementById('attachBtn');
-        [sendBtn, ocrStartBtn, essayGuidanceBtn, essayGradeBtn, attachBtn].forEach((el) => {
-            if (!el) return;
-            el.disabled = !!busy;
-        });
-        if (chatInput) chatInput.disabled = !!busy;
-    };
-
-    const runOcr = async () => {
-        if (!requireApiKey()) return;
-        if (!newSelectedImages.length) {
-            showToast('请先点击 Attach 选择图片', 'error');
-            return;
-        }
-        const model = ocrModelSelect ? ocrModelSelect.value : 'gemini-flash-lite-latest';
-        addChatMessage({
-            role: 'user',
-            text: `OCR：${newSelectedImages.length} 张图片`
-        });
-        let finalText = '';
-        const placeholder = addChatMessage({
-            role: 'assistant',
-            text: '识别中…',
-            actions: [
-                { label: '复制', onClick: () => copyText(finalText) },
-                { label: '下载', onClick: () => downloadTextFile(finalText, `OCR_${new Date().toISOString().slice(0, 10)}.txt`) }
-            ]
-        });
-        setBusy(true);
-        try {
-            const parts = [];
-            for (let i = 0; i < newSelectedImages.length; i++) {
-                const file = newSelectedImages[i];
-                if (placeholder) placeholder.setText(`识别中…（${i + 1}/${newSelectedImages.length}）`);
-                const base64 = await fileToBase64(file);
-                const { text } = await callOCR(base64, model);
-                const title = newSelectedImages.length > 1 ? `【${file.name}】\n` : '';
-                parts.push(`${title}${text}`);
-            }
-            finalText = parts.join('\n\n---\n\n');
-            const html = `<div style="white-space:pre-wrap;">${escapeHtml(finalText)}</div>`;
-            if (placeholder) placeholder.setHtml(html);
-            showToast('识别完成', 'success');
-        } catch (e) {
-            if (placeholder) placeholder.setText(`识别失败：${e.message || e}`);
-            showToast('识别失败: ' + (e.message || e), 'error');
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    const runEssayGuidance = async () => {
-        if (!requireApiKey()) return;
-        const type = essayTypeSelect ? essayTypeSelect.value : 'application';
-        const topic = (essayTopicInput ? essayTopicInput.value : '').trim();
-        if (!topic) {
-            showToast('请先填写题目/要求', 'error');
-            return;
-        }
-        const model = textModelSelect ? textModelSelect.value : 'gemini-3-pro-preview';
-        addChatMessage({ role: 'user', text: `写作思路：${topic}` });
-        let finalText = '';
-        const placeholder = addChatMessage({
-            role: 'assistant',
-            text: '生成中…',
-            actions: [{ label: '复制', onClick: () => copyText(finalText) }]
-        });
-        setBusy(true);
-        try {
-            const result = type === 'continuation'
-                ? await getContinuationGuidance(topic, model)
-                : await getWritingGuidance(topic, model);
-            finalText = result;
-            const html = `<div style="white-space:pre-wrap;">${escapeHtml(finalText)}</div>`;
-            if (placeholder) placeholder.setHtml(html);
-            showToast('写作思路已生成', 'success');
-        } catch (e) {
-            if (placeholder) placeholder.setText(`生成失败：${e.message || e}`);
-            showToast('生成失败: ' + (e.message || e), 'error');
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    const runEssayGrade = async () => {
-        if (!requireApiKey()) return;
-        const type = essayTypeSelect ? essayTypeSelect.value : 'application';
-        const topic = (essayTopicInput ? essayTopicInput.value : '').trim();
-        const essay = (essayTextInput ? essayTextInput.value : '').trim();
-        const original = (essayOriginalInput ? essayOriginalInput.value : '').trim();
-        const model = textModelSelect ? textModelSelect.value : 'gemini-3-pro-preview';
-
-        if (!topic) {
-            showToast('请先填写题目/要求', 'error');
-            return;
-        }
-
-        if (type === 'application') {
-            if (!essay) {
-                await runEssayGuidance();
-                return;
-            }
-            addChatMessage({ role: 'user', text: `批改应用文：${topic}` });
-            let finalText = '';
-            const placeholder = addChatMessage({
-                role: 'assistant',
-                text: '批改中…',
-                actions: [
-                    { label: '复制', onClick: () => copyText(finalText) },
-                    { label: '下载', onClick: () => downloadTextFile(finalText, `应用文批改_${new Date().toISOString().slice(0, 10)}.txt`) }
-                ]
-            });
-            setBusy(true);
-            try {
-                const raw = await gradeEssay(topic, essay, model);
-                const data = parseJsonFromOutput(raw);
-                if (!data) {
-                    finalText = raw;
-                    const html = `<div style="white-space:pre-wrap;">${escapeHtml(finalText)}</div>`;
-                    if (placeholder) placeholder.setHtml(html);
-                    return;
-                }
-                const html = formatApplicationGradingHtml(data);
-                finalText = applicationGradingToText(data);
-                if (placeholder) placeholder.setHtml(html);
-                showToast('批改完成', 'success');
-            } catch (e) {
-                if (placeholder) placeholder.setText(`批改失败：${e.message || e}`);
-                showToast('批改失败: ' + (e.message || e), 'error');
-            } finally {
-                setBusy(false);
-            }
-            return;
-        }
-
-        if (!essay) {
-            await runEssayGuidance();
-            return;
-        }
-        if (!original) {
-            showToast('读后续写需要填写原文内容', 'error');
-            return;
-        }
-        addChatMessage({ role: 'user', text: `批改读后续写：${topic}` });
-        let finalText = '';
-        const placeholder = addChatMessage({
-            role: 'assistant',
-            text: '批改中…',
-            actions: [
-                { label: '复制', onClick: () => copyText(finalText) },
-                { label: '下载', onClick: () => downloadTextFile(finalText, `读后续写批改_${new Date().toISOString().slice(0, 10)}.txt`) }
-            ]
-        });
-        setBusy(true);
-        try {
-            const raw = await gradeContinuation(topic, original, essay, model);
-            const data = parseJsonFromOutput(raw);
-            if (!data) {
-                finalText = raw;
-                const html = `<div style="white-space:pre-wrap;">${escapeHtml(finalText)}</div>`;
-                if (placeholder) placeholder.setHtml(html);
-                return;
-            }
-            const html = formatContinuationGradingHtml(data);
-            finalText = continuationGradingToText(data);
-            if (placeholder) placeholder.setHtml(html);
-            showToast('批改完成', 'success');
-        } catch (e) {
-            if (placeholder) placeholder.setText(`批改失败：${e.message || e}`);
-            showToast('批改失败: ' + (e.message || e), 'error');
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    const handleSend = async () => {
-        if (chipOcr && chipOcr.classList.contains('active')) {
-            await runOcr();
-            return;
-        }
-        if (chipEssay && chipEssay.classList.contains('active')) {
-            await runEssayGrade();
-            return;
-        }
-        if (chatInput && chatInput.value.trim()) {
-            addChatMessage({ role: 'user', text: chatInput.value.trim() });
-            addChatMessage({ role: 'assistant', text: '请选择 OCR 或 作文批改 工具继续。' });
-            chatInput.value = '';
-            return;
-        }
-        if (chipModel) chipModel.click();
-        showToast('请选择一个工具', 'error');
-    };
-
-    if (sendBtn) sendBtn.addEventListener('click', handleSend);
-    if (chatInput) {
-        chatInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleSend();
-            }
-        });
-    }
-
-    if (ocrStartBtn) ocrStartBtn.addEventListener('click', runOcr);
-    if (ocrClearBtn) ocrClearBtn.addEventListener('click', () => {
-        if (chatInput) chatInput.focus();
-    });
-    if (essayGuidanceBtn) essayGuidanceBtn.addEventListener('click', runEssayGuidance);
-    if (essayGradeBtn) essayGradeBtn.addEventListener('click', runEssayGrade);
-
-    const updateApiStatus = () => {
-        const apiStatusText = document.getElementById('apiStatusText');
-        if (!apiStatusText) return;
-        apiStatusText.textContent = API_CONFIG && API_CONFIG.apiKey
-            ? `API 已配置：${API_CONFIG.baseURL}`
-            : 'API 未配置：请创建 config.js 或设置部署环境变量';
-    };
-    updateApiStatus();
-
-    if (textModelSelect && !textModelSelect.value) {
-        textModelSelect.value = 'gemini-3-pro-preview';
-    }
-
-    if (essayTypeSelect) essayTypeSelect.addEventListener('change', () => {
-        const chip = chipEssay;
-        if (chip && !chip.classList.contains('active')) chip.click();
-    });
-}
 
 function initApp() {
     // ========== 模式切换 ==========
@@ -956,30 +272,30 @@ function initApp() {
     const essayModeBtn = document.getElementById('essayModeBtn');
     const normalMode = document.getElementById('normalMode');
     const essayMode = document.getElementById('essayMode');
-    
+
     normalModeBtn.addEventListener('click', () => {
         normalModeBtn.classList.add('active');
         essayModeBtn.classList.remove('active');
         normalMode.classList.remove('hidden');
         essayMode.classList.add('hidden');
     });
-    
+
     essayModeBtn.addEventListener('click', () => {
         essayModeBtn.classList.add('active');
         normalModeBtn.classList.remove('active');
         essayMode.classList.remove('hidden');
         normalMode.classList.add('hidden');
     });
-    
+
     // ========== 普通OCR模式 ==========
     initNormalMode();
-    
+
     // ========== 英语作文模式 ==========
     initEssayMode();
-    
+
     // ========== 读后续写模式 ==========
     initContinuationMode();
-    
+
     // ========== 作文类型切换 ==========
     initEssayTypeTabs();
 }
@@ -992,7 +308,7 @@ function initEssayTypeTabs() {
     const continuationBtn = document.getElementById('continuationBtn');
     const applicationSection = document.getElementById('applicationSection');
     const continuationSection = document.getElementById('continuationSection');
-    
+
     if (applicationBtn && continuationBtn && applicationSection && continuationSection) {
         applicationBtn.addEventListener('click', () => {
             applicationBtn.classList.add('active');
@@ -1000,7 +316,7 @@ function initEssayTypeTabs() {
             applicationSection.classList.remove('hidden');
             continuationSection.classList.add('hidden');
         });
-        
+
         continuationBtn.addEventListener('click', () => {
             continuationBtn.classList.add('active');
             applicationBtn.classList.remove('active');
@@ -1027,7 +343,7 @@ function initNormalMode() {
     const copyBtn = document.getElementById('normalCopyBtn');
     const downloadBtn = document.getElementById('normalDownloadBtn');
     const newBtn = document.getElementById('normalNewBtn');
-    
+
     // 点击上传
     selectBtn.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('click', (e) => {
@@ -1035,43 +351,43 @@ function initNormalMode() {
             fileInput.click();
         }
     });
-    
+
     // 文件选择
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) handleNormalOCR(file);
     });
-    
+
     // 拖拽上传
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('dragover');
     });
-    
+
     dropZone.addEventListener('dragleave', () => {
         dropZone.classList.remove('dragover');
     });
-    
+
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
         const file = e.dataTransfer.files[0];
         if (file) handleNormalOCR(file);
     });
-    
+
     // 复制按钮
     copyBtn.addEventListener('click', () => {
         navigator.clipboard.writeText(extractedText.textContent).then(() => {
             showToast('已复制到剪贴板', 'success');
         });
     });
-    
+
     // 下载按钮
     downloadBtn.addEventListener('click', () => {
         const text = extractedText.textContent;
         downloadTextFile(text, `OCR识别结果_${new Date().toISOString().slice(0, 10)}.txt`);
     });
-    
+
     // 新文档按钮
     newBtn.addEventListener('click', () => {
         resultDiv.classList.add('hidden');
@@ -1080,49 +396,48 @@ function initNormalMode() {
         previewImg.src = '';
         progressBar.style.width = '0%';
     });
-    
+
     // 处理OCR
     async function handleNormalOCR(file) {
-        if (!validateImageFile(file)) return;
-        
+        if (!validateOcrFile(file)) return;
+
         try {
             // 显示进度
             resultDiv.classList.add('hidden');
             progressDiv.classList.remove('hidden');
-            
+
             // 模拟进度
             let progress = 0;
             const progressInterval = setInterval(() => {
                 progress += Math.random() * 15;
                 if (progress > 90) progress = 90;
                 progressBar.style.width = `${progress}%`;
-                
+
                 if (progress < 30) progressText.textContent = '准备中...';
                 else if (progress < 60) progressText.textContent = '连接AI...';
                 else progressText.textContent = '识别中...';
             }, 200);
-            
-            // 转换为base64
-            const base64 = await fileToBase64(file);
-            
+
+
+
             // 调用OCR
             const model = modelSelect.value;
-            const result = await callOCR(base64, model);
-            
+            const result = await callOCR(file, model);
+
             // 完成进度
             clearInterval(progressInterval);
             progressBar.style.width = '100%';
             progressText.textContent = '识别完成！';
-            
+
             // 显示结果
             setTimeout(() => {
                 progressDiv.classList.add('hidden');
-                previewImg.src = base64;
+                renderNormalPreview(previewImg, file);
                 extractedText.textContent = result.text;
                 resultDiv.classList.remove('hidden');
                 showToast('识别成功', 'success');
             }, 500);
-            
+
         } catch (error) {
             console.error('OCR失败:', error);
             progressDiv.classList.add('hidden');
@@ -1146,7 +461,7 @@ function initEssayMode() {
     const progressText = document.getElementById('essayProgressText');
     const progressCount = document.getElementById('essayProgressCount');
     const ocrResult = document.getElementById('essayOcrResult');
-    
+
     // OCR结果区
     const ocrResultTextarea = document.getElementById('essayContent');
     const wordCount = document.getElementById('essayWordCount');
@@ -1154,7 +469,7 @@ function initEssayMode() {
     const sendBtn = document.getElementById('sendToGradeBtn');
     const clearEssayBtn = document.getElementById('clearEssayBtn');
     const copyAllBtn = document.getElementById('copyAllBtn');
-    
+
     // 批改区
     const gradingTopic = document.getElementById('gradingTopic');
     const gradingEssay = document.getElementById('gradingEssay');
@@ -1178,16 +493,16 @@ function initEssayMode() {
     const copyResultBtn = document.getElementById('copyResultBtn');
     const downloadResultBtn = document.getElementById('downloadResultBtn');
     const newGradingBtn = document.getElementById('newGradingBtn');
-    
+
     // 写作思路区
     const guidanceResult = document.getElementById('guidanceResult');
     const guidanceContent = document.getElementById('guidanceContent');
     const copyGuidanceBtn = document.getElementById('copyGuidanceBtn');
     const downloadGuidanceBtn = document.getElementById('downloadGuidanceBtn');
     const newGuidanceBtn = document.getElementById('newGuidanceBtn');
-    
+
     // ========== OCR部分 ==========
-    
+
     // 点击上传
     selectBtn.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('click', (e) => {
@@ -1195,7 +510,7 @@ function initEssayMode() {
             fileInput.click();
         }
     });
-    
+
     // 文件选择（支持多选）
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
@@ -1203,17 +518,17 @@ function initEssayMode() {
             addImagesToList(files);
         }
     });
-    
+
     // 拖拽
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('dragover');
     });
-    
+
     dropZone.addEventListener('dragleave', () => {
         dropZone.classList.remove('dragover');
     });
-    
+
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
@@ -1222,115 +537,99 @@ function initEssayMode() {
             addImagesToList(files);
         }
     });
-    
+
     // 添加图片到列表
     function addImagesToList(files) {
-        const validFiles = files.filter(file => validateImageFile(file, false));
-        
+        const validFiles = files.filter(file => validateOcrFile(file, false));
+
         validFiles.forEach(file => {
             uploadedImages.push(file);
         });
-        
+
         updateImagePreviewList();
-        
+
         if (uploadedImages.length > 0) {
             imagePreviewList.classList.remove('hidden');
             startOcrBtn.classList.remove('hidden');
         }
     }
-    
+
     // 更新图片预览列表
     function updateImagePreviewList() {
         imagePreviewList.innerHTML = '';
-        
+
         uploadedImages.forEach((file, index) => {
             const previewItem = document.createElement('div');
             previewItem.className = 'image-preview-item';
-            
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                previewItem.innerHTML = `
-                    <img src="${e.target.result}" alt="预览">
-                    <div class="info">
-                        <div class="name">${file.name}</div>
-                        <div class="size">${(file.size / 1024).toFixed(1)} KB</div>
-                    </div>
-                    <button class="remove-btn" data-index="${index}">删除</button>
-                `;
-                
-                // 删除按钮
-                previewItem.querySelector('.remove-btn').addEventListener('click', () => {
-                    uploadedImages.splice(index, 1);
-                    updateImagePreviewList();
-                    
-                    if (uploadedImages.length === 0) {
-                        imagePreviewList.classList.add('hidden');
-                        startOcrBtn.classList.add('hidden');
-                    }
-                });
-            };
-            reader.readAsDataURL(file);
-            
+            renderFilePreviewItem(previewItem, file);
+            previewItem.querySelector('.remove-btn').addEventListener('click', () => {
+                uploadedImages.splice(index, 1);
+                updateImagePreviewList();
+
+                if (uploadedImages.length === 0) {
+                    imagePreviewList.classList.add('hidden');
+                    startOcrBtn.classList.add('hidden');
+                }
+            });
             imagePreviewList.appendChild(previewItem);
         });
     }
-    
+
     // 开始OCR识别
     startOcrBtn.addEventListener('click', async () => {
         if (uploadedImages.length === 0) return;
-        
+
         try {
             // 隐藏上传区域，显示进度
             imagePreviewList.classList.add('hidden');
             startOcrBtn.classList.add('hidden');
             progressDiv.classList.remove('hidden');
             ocrResult.classList.add('hidden');
-            
+
             ocrResults = [];
             const model = ocrModel.value;
-            
+
             // 逐个识别图片
             for (let i = 0; i < uploadedImages.length; i++) {
                 const file = uploadedImages[i];
-                
+
                 // 更新进度
                 progressCount.textContent = `${i + 1}/${uploadedImages.length}`;
                 progressText.textContent = `正在识别第 ${i + 1} 张图片...`;
                 progressBar.style.width = `${((i) / uploadedImages.length) * 100}%`;
-                
-                // 转换为base64
-                const base64 = await fileToBase64(file);
-                
+
+
+
                 // 调用OCR
-                const result = await callEssayOCR(base64, model);
+                const result = await callEssayOCR(file, model);
                 ocrResults.push(result.text);
-                
+
                 // 更新进度
                 progressBar.style.width = `${((i + 1) / uploadedImages.length) * 100}%`;
             }
-            
+
             // 完成
             progressText.textContent = '识别完成！';
-            
+
             // 合并所有识别结果
             const mergedText = ocrResults.join('\n\n---\n\n');
-            
+
             setTimeout(() => {
                 progressDiv.classList.add('hidden');
-                
+
                 // 全部显示在一个文本框中
                 ocrResultTextarea.value = mergedText;
                 updateWordCount(mergedText, wordCount, wordHint);
                 sendBtn.disabled = !mergedText.trim();
-                
+
                 ocrResult.classList.remove('hidden');
                 showToast(`成功识别 ${uploadedImages.length} 张图片`, 'success');
-                
+
                 // 清空图片列表
                 uploadedImages = [];
                 fileInput.value = '';
             }, 500);
-            
+
         } catch (error) {
             console.error('OCR失败:', error);
             progressDiv.classList.add('hidden');
@@ -1339,7 +638,7 @@ function initEssayMode() {
             showToast('识别失败: ' + error.message, 'error');
         }
     });
-    
+
     // 全部复制按钮
     copyAllBtn.addEventListener('click', () => {
         const text = ocrResultTextarea.value;
@@ -1347,7 +646,7 @@ function initEssayMode() {
             showToast('没有内容可复制', 'error');
             return;
         }
-        
+
         navigator.clipboard.writeText(text).then(() => {
             showToast('已复制全部内容到剪贴板', 'success');
         }).catch(() => {
@@ -1356,7 +655,7 @@ function initEssayMode() {
             showToast('请手动复制选中的文本', 'success');
         });
     });
-    
+
     // 清空按钮
     clearEssayBtn.addEventListener('click', () => {
         ocrResultTextarea.value = '';
@@ -1364,40 +663,40 @@ function initEssayMode() {
         wordHint.textContent = '建议: 80词左右';
         sendBtn.disabled = true;
     });
-    
+
     // 字数统计
     ocrResultTextarea.addEventListener('input', () => {
         updateWordCount(ocrResultTextarea.value, wordCount, wordHint);
         sendBtn.disabled = !ocrResultTextarea.value.trim();
     });
-    
+
     // 发送到批改区
     sendBtn.addEventListener('click', () => {
         const fullText = ocrResultTextarea.value;
-        
+
         if (confirm('📤 发送到批改区\n\n识别结果将复制到作文框。\n请您手动将题目部分复制到"题目要求"框中。\n\n点击确定继续。')) {
             gradingTopic.value = '';
             gradingEssay.value = fullText;
-            
+
             const count = countWords(gradingEssay.value);
             gradingWordCount.textContent = count;
-            
+
             // 更新字数状态
             gradingEssay.dispatchEvent(new Event('input'));
-            
+
             // 滚动到批改区
             document.querySelector('#gradingInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
             showToast('已发送！请将题目部分复制到"题目要求"框', 'success');
         }
     });
-    
+
     // ========== 批改区部分 ==========
-    
+
     // 批改区字数统计
     gradingEssay.addEventListener('input', () => {
         const count = countWords(gradingEssay.value);
         gradingWordCount.textContent = count;
-        
+
         // 字数状态提示
         if (count === 0) {
             gradingWordStatus.textContent = '';
@@ -1412,26 +711,26 @@ function initEssayMode() {
             gradingWordStatus.textContent = `⚠️ 偏多 (建议60-100词)`;
             gradingWordStatus.className = 'text-xs word-count-warning';
         }
-        
+
         updateGradingButtons();
     });
-    
+
     gradingTopic.addEventListener('input', () => {
         updateGradingButtons();
     });
-    
+
     // 更新按钮状态
     function updateGradingButtons() {
         const hasTopic = gradingTopic.value.trim().length > 0;
         const hasEssay = gradingEssay.value.trim().length > 0;
-        
+
         // 只有题目：可以获取思路
         getGuidanceBtn.disabled = !hasTopic;
-        
+
         // 题目+作文：可以批改
         startGradingBtn.disabled = !hasTopic || !hasEssay;
     }
-    
+
     // 获取写作思路
     getGuidanceBtn.addEventListener('click', async () => {
         try {
@@ -1439,21 +738,21 @@ function initEssayMode() {
             gradingProgress.classList.remove('hidden');
             gradingResult.classList.add('hidden');
             guidanceResult.classList.add('hidden');
-            
+
             const topic = gradingTopic.value;
             const model = gradingModel.value;
-            
+
             // 进度提示
             gradingProgressText.textContent = 'AI正在分析题目...';
             gradingTimeEst.textContent = '预计需要 8-12 秒';
-            
+
             // 模拟进度
             let progress = 0;
             const progressInterval = setInterval(() => {
                 progress += Math.random() * 10;
                 if (progress > 90) progress = 90;
                 gradingProgressBar.style.width = `${progress}%`;
-                
+
                 if (progress < 40) {
                     gradingProgressText.textContent = 'AI正在分析题目...';
                 } else if (progress < 70) {
@@ -1462,20 +761,20 @@ function initEssayMode() {
                     gradingProgressText.textContent = 'AI正在生成范文示例...';
                 }
             }, 400);
-            
+
             const result = await getWritingGuidance(topic, model);
-            
+
             clearInterval(progressInterval);
             gradingProgressBar.style.width = '100%';
             gradingProgressText.textContent = '思路生成完成！';
-            
+
             setTimeout(() => {
                 gradingProgress.classList.add('hidden');
                 displayGuidanceResult(result);
                 guidanceResult.classList.remove('hidden');
                 showToast('写作思路已生成', 'success');
             }, 500);
-            
+
         } catch (error) {
             console.error('思路生成失败:', error);
             gradingProgress.classList.add('hidden');
@@ -1483,7 +782,7 @@ function initEssayMode() {
             showToast('思路生成失败: ' + error.message, 'error');
         }
     });
-    
+
     // 开始批改
     startGradingBtn.addEventListener('click', async () => {
         try {
@@ -1491,11 +790,11 @@ function initEssayMode() {
             gradingProgress.classList.remove('hidden');
             gradingResult.classList.add('hidden');
             guidanceResult.classList.add('hidden');
-            
+
             const topic = gradingTopic.value;
             const essay = gradingEssay.value;
             const model = gradingModel.value;
-            
+
             // 根据模型估算时间
             let estimatedTime = '10-15 秒';
             if (model === 'GPT-OSS-120B') {
@@ -1504,14 +803,14 @@ function initEssayMode() {
                 estimatedTime = '15-20 秒';
             }
             gradingTimeEst.textContent = `预计需要 ${estimatedTime}`;
-            
+
             // 模拟进度条
             let progress = 0;
             const progressInterval = setInterval(() => {
                 progress += Math.random() * 8;
                 if (progress > 90) progress = 90;
                 gradingProgressBar.style.width = `${progress}%`;
-                
+
                 if (progress < 30) {
                     gradingProgressText.textContent = 'AI正在阅读作文...';
                 } else if (progress < 60) {
@@ -1520,20 +819,20 @@ function initEssayMode() {
                     gradingProgressText.textContent = 'AI正在生成批改报告...';
                 }
             }, 500);
-            
+
             const result = await gradeEssay(topic, essay, model);
-            
+
             clearInterval(progressInterval);
             gradingProgressBar.style.width = '100%';
             gradingProgressText.textContent = '批改完成！';
-            
+
             setTimeout(() => {
                 gradingProgress.classList.add('hidden');
                 displayGradingResult(result);
                 gradingResult.classList.remove('hidden');
                 showToast('批改完成', 'success');
             }, 500);
-            
+
         } catch (error) {
             console.error('批改失败:', error);
             gradingProgress.classList.add('hidden');
@@ -1541,7 +840,7 @@ function initEssayMode() {
             showToast('批改失败: ' + error.message, 'error');
         }
     });
-    
+
     // 显示批改结果
     function displayGradingResult(result) {
         let data;
@@ -1565,26 +864,26 @@ function initEssayMode() {
                 tips: '请重试'
             };
         }
-        
+
         // 更新总分
         totalScoreEl.textContent = `${data.totalScore}/15`;
-        
+
         // 更新星级
         const stars = Math.round((data.totalScore / 15) * 5);
         scoreStarsEl.textContent = '⭐'.repeat(stars) + '☆'.repeat(5 - stars);
-        
+
         // 更新分项得分
         contentScoreEl.textContent = `${data.scores.content}/5`;
         languageScoreEl.textContent = `${data.scores.language}/7`;
         structureScoreEl.textContent = `${data.scores.structure}/3`;
-        
+
         // 构建详细批改卡片
         gradingResultContent.innerHTML = `
             <div class="grading-card">
                 <h4>✅ 内容点评</h4>
                 <div class="content">${data.contentReview}</div>
             </div>
-            
+
             <div class="grading-card">
                 <h4>✨ 语言亮点</h4>
                 <div class="content">
@@ -1593,7 +892,7 @@ function initEssayMode() {
                     </ul>
                 </div>
             </div>
-            
+
             <div class="grading-card">
                 <h4>⚠️ 存在问题</h4>
                 <div class="content">
@@ -1602,37 +901,37 @@ function initEssayMode() {
                     </ul>
                 </div>
             </div>
-            
+
             <div class="grading-card">
                 <h4>💡 改进建议</h4>
                 <div class="content">${data.suggestions}</div>
             </div>
-            
+
             <div class="grading-card model-answer-card">
                 <h4>📖 范文参考（约80词）</h4>
                 <div class="content">${data.modelAnswer}</div>
             </div>
-            
+
             <div class="grading-card">
                 <h4>🎯 提分秘诀</h4>
                 <div class="content">${data.tips}</div>
             </div>
         `;
     }
-    
+
     // 显示写作思路
     function displayGuidanceResult(result) {
         // 将Markdown格式的文本转换为分块卡片
         const sections = result.split(/\n(?=\d\.\s\*\*)/);
-        
+
         const htmlContent = sections.map(section => {
             if (!section.trim()) return '';
-            
+
             const titleMatch = section.match(/\*\*(.*?)\*\*/);
             const title = titleMatch ? titleMatch[1] : '详情';
-            
+
             let content = section.replace(/\d\.\s\*\*(.*?)\*\*\n?/, '').trim();
-            
+
             // 进一步处理内容中的Markdown
             content = content
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // 加粗
@@ -1649,7 +948,7 @@ function initEssayMode() {
 
         guidanceContent.innerHTML = htmlContent;
     }
-    
+
     // 批改结果按钮
     copyResultBtn.addEventListener('click', () => {
         const text = gradingResultContent.innerText;
@@ -1657,7 +956,7 @@ function initEssayMode() {
             showToast('已复制到剪贴板', 'success');
         });
     });
-    
+
     downloadResultBtn.addEventListener('click', () => {
         const totalScore = totalScoreEl.textContent;
         const text = `
@@ -1670,10 +969,10 @@ ${gradingResultContent.innerText}
 
 批改时间：${new Date().toLocaleString('zh-CN')}
         `.trim();
-        
+
         downloadTextFile(text, `作文批改报告_${new Date().toISOString().slice(0, 10)}.txt`);
     });
-    
+
     newGradingBtn.addEventListener('click', () => {
         gradingResult.classList.add('hidden');
         gradingInput.classList.remove('hidden');
@@ -1684,7 +983,7 @@ ${gradingResultContent.innerText}
         updateGradingButtons();
         gradingProgressBar.style.width = '0%';
     });
-    
+
     // 写作思路按钮
     copyGuidanceBtn.addEventListener('click', () => {
         const text = guidanceContent.innerText;
@@ -1692,7 +991,7 @@ ${gradingResultContent.innerText}
             showToast('已复制到剪贴板', 'success');
         });
     });
-    
+
     downloadGuidanceBtn.addEventListener('click', () => {
         const text = `
 写作思路指导
@@ -1702,10 +1001,10 @@ ${guidanceContent.innerText}
 
 生成时间：${new Date().toLocaleString('zh-CN')}
         `.trim();
-        
+
         downloadTextFile(text, `写作思路_${new Date().toISOString().slice(0, 10)}.txt`);
     });
-    
+
     newGuidanceBtn.addEventListener('click', () => {
         guidanceResult.classList.add('hidden');
         gradingInput.classList.remove('hidden');
@@ -1728,7 +1027,7 @@ function initContinuationMode() {
     const progressText = document.getElementById('continuationProgressText');
     const progressCount = document.getElementById('continuationProgressCount');
     const ocrResult = document.getElementById('continuationOcrResult');
-    
+
     // OCR结果区
     const topicTextarea = document.getElementById('continuationTopic');
     const originalTextarea = document.getElementById('continuationOriginal');
@@ -1736,7 +1035,7 @@ function initContinuationMode() {
     const wordCount = document.getElementById('continuationWordCount');
     const wordHint = document.getElementById('continuationWordHint');
     const sendBtn = document.getElementById('sendToContinuationGradeBtn');
-    
+
     // 批改区
     const gradingTopic = document.getElementById('continuationGradingTopic');
     const gradingOriginal = document.getElementById('continuationGradingOriginal');
@@ -1762,9 +1061,9 @@ function initContinuationMode() {
     const copyResultBtn = document.getElementById('copyContinuationResultBtn');
     const downloadResultBtn = document.getElementById('downloadContinuationResultBtn');
     const newGradingBtn = document.getElementById('newContinuationGradingBtn');
-    
+
     // ========== OCR部分 ==========
-    
+
     // 点击上传
     selectBtn.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('click', (e) => {
@@ -1772,7 +1071,7 @@ function initContinuationMode() {
             fileInput.click();
         }
     });
-    
+
     // 文件选择（支持多选）
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
@@ -1780,17 +1079,17 @@ function initContinuationMode() {
             addImagesToList(files);
         }
     });
-    
+
     // 拖拽
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('dragover');
     });
-    
+
     dropZone.addEventListener('dragleave', () => {
         dropZone.classList.remove('dragover');
     });
-    
+
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
@@ -1799,117 +1098,101 @@ function initContinuationMode() {
             addImagesToList(files);
         }
     });
-    
+
     // 添加图片到列表
     let continuationImages = [];
     function addImagesToList(files) {
-        const validFiles = files.filter(file => validateImageFile(file, false));
-        
+        const validFiles = files.filter(file => validateOcrFile(file, false));
+
         validFiles.forEach(file => {
             continuationImages.push(file);
         });
-        
+
         updateImagePreviewList();
-        
+
         if (continuationImages.length > 0) {
             imagePreviewList.classList.remove('hidden');
             startOcrBtn.classList.remove('hidden');
         }
     }
-    
+
     // 更新图片预览列表
     function updateImagePreviewList() {
         imagePreviewList.innerHTML = '';
-        
+
         continuationImages.forEach((file, index) => {
             const previewItem = document.createElement('div');
             previewItem.className = 'image-preview-item';
-            
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                previewItem.innerHTML = `
-                    <img src="${e.target.result}" alt="预览">
-                    <div class="info">
-                        <div class="name">${file.name}</div>
-                        <div class="size">${(file.size / 1024).toFixed(1)} KB</div>
-                    </div>
-                    <button class="remove-btn" data-index="${index}">删除</button>
-                `;
-                
-                // 删除按钮
-                previewItem.querySelector('.remove-btn').addEventListener('click', () => {
-                    continuationImages.splice(index, 1);
-                    updateImagePreviewList();
-                    
-                    if (continuationImages.length === 0) {
-                        imagePreviewList.classList.add('hidden');
-                        startOcrBtn.classList.add('hidden');
-                    }
-                });
-            };
-            reader.readAsDataURL(file);
-            
+            renderFilePreviewItem(previewItem, file);
+            previewItem.querySelector('.remove-btn').addEventListener('click', () => {
+                continuationImages.splice(index, 1);
+                updateImagePreviewList();
+
+                if (continuationImages.length === 0) {
+                    imagePreviewList.classList.add('hidden');
+                    startOcrBtn.classList.add('hidden');
+                }
+            });
             imagePreviewList.appendChild(previewItem);
         });
     }
-    
+
     // 开始OCR识别
     startOcrBtn.addEventListener('click', async () => {
         if (continuationImages.length === 0) return;
-        
+
         try {
             // 隐藏上传区域，显示进度
             imagePreviewList.classList.add('hidden');
             startOcrBtn.classList.add('hidden');
             progressDiv.classList.remove('hidden');
             ocrResult.classList.add('hidden');
-            
+
             const ocrResults = [];
             const model = ocrModel.value;
-            
+
             // 逐个识别图片
             for (let i = 0; i < continuationImages.length; i++) {
                 const file = continuationImages[i];
-                
+
                 // 更新进度
                 progressCount.textContent = `${i + 1}/${continuationImages.length}`;
                 progressText.textContent = `正在识别第 ${i + 1} 张图片...`;
                 progressBar.style.width = `${((i) / continuationImages.length) * 100}%`;
-                
-                // 转换为base64
-                const base64 = await fileToBase64(file);
-                
+
+
+
                 // 调用OCR
-                const result = await callEssayOCR(base64, model);
+                const result = await callEssayOCR(file, model);
                 ocrResults.push(result.text);
-                
+
                 // 更新进度
                 progressBar.style.width = `${((i + 1) / continuationImages.length) * 100}%`;
             }
-            
+
             // 完成
             progressText.textContent = '识别完成！';
-            
+
             setTimeout(() => {
                 progressDiv.classList.add('hidden');
-                
+
                 // 分别显示在三个文本框中
                 if (ocrResults.length >= 1) topicTextarea.value = ocrResults[0];
                 if (ocrResults.length >= 2) originalTextarea.value = ocrResults[1];
                 if (ocrResults.length >= 3) contentTextarea.value = ocrResults[2];
-                
+
                 // 更新字数统计
                 updateWordCount(contentTextarea.value, wordCount, wordHint);
                 sendBtn.disabled = !contentTextarea.value.trim();
-                
+
                 ocrResult.classList.remove('hidden');
                 showToast(`成功识别 ${continuationImages.length} 张图片`, 'success');
-                
+
                 // 清空图片列表
                 continuationImages = [];
                 fileInput.value = '';
             }, 500);
-            
+
         } catch (error) {
             console.error('OCR失败:', error);
             progressDiv.classList.add('hidden');
@@ -1918,39 +1201,39 @@ function initContinuationMode() {
             showToast('识别失败: ' + error.message, 'error');
         }
     });
-    
+
     // 字数统计
     contentTextarea.addEventListener('input', () => {
         updateWordCount(contentTextarea.value, wordCount, wordHint);
         sendBtn.disabled = !contentTextarea.value.trim();
     });
-    
+
     // 发送到批改区
     sendBtn.addEventListener('click', () => {
         if (confirm('📤 发送到批改区\n\n识别结果将复制到批改区。\n\n点击确定继续。')) {
             gradingTopic.value = topicTextarea.value;
             gradingOriginal.value = originalTextarea.value;
             gradingContent.value = contentTextarea.value;
-            
+
             const count = countWords(gradingContent.value);
             gradingWordCount.textContent = count;
-            
+
             // 更新字数状态
             gradingContent.dispatchEvent(new Event('input'));
-            
+
             // 滚动到批改区
             document.querySelector('#continuationGradingInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
             showToast('已发送到批改区', 'success');
         }
     });
-    
+
     // ========== 批改区部分 ==========
-    
+
     // 批改区字数统计
     gradingContent.addEventListener('input', () => {
         const count = countWords(gradingContent.value);
         gradingWordCount.textContent = count;
-        
+
         // 字数状态提示
         if (count === 0) {
             gradingWordStatus.textContent = '';
@@ -1962,47 +1245,47 @@ function initContinuationMode() {
             gradingWordStatus.textContent = `⚠️ 还需约 ${130 - count} 词`;
             gradingWordStatus.className = 'text-xs word-count-warning';
         }
-        
+
         updateGradingButtons();
     });
-    
+
     gradingTopic.addEventListener('input', () => {
         updateGradingButtons();
     });
-    
+
     // 更新按钮状态
     function updateGradingButtons() {
         const hasTopic = gradingTopic.value.trim().length > 0;
         const hasContent = gradingContent.value.trim().length > 0;
-        
+
         // 只有题目：可以获取思路
         getGuidanceBtn.disabled = !hasTopic;
-        
+
         // 题目+续写：可以批改
         startGradingBtn.disabled = !hasTopic || !hasContent;
     }
-    
+
     // 获取写作思路
     getGuidanceBtn.addEventListener('click', async () => {
         try {
             gradingInput.classList.add('hidden');
             gradingProgress.classList.remove('hidden');
             gradingResult.classList.add('hidden');
-            
+
             const topic = gradingTopic.value;
             const model = gradingModel.value;
-            
+
             // 进度提示
             gradingProgressText.textContent = 'AI正在分析题目...';
             gradingTimeEst.textContent = '预计需要 10-15 秒';
-            
+
             // 模拟进度
             let progress = 0;
             const progressInterval = setInterval(() => {
                 progress += Math.random() * 10;
                 if (progress > 90) progress = 90;
                 gradingProgressBar.style.width = `${progress}%`;
-                
+
                 if (progress < 40) {
                     gradingProgressText.textContent = 'AI正在分析题目...';
                 } else if (progress < 70) {
@@ -2011,20 +1294,20 @@ function initContinuationMode() {
                     gradingProgressText.textContent = 'AI正在生成范文示例...';
                 }
             }, 400);
-            
+
             const result = await getContinuationGuidance(topic, model);
-            
+
             clearInterval(progressInterval);
             gradingProgressBar.style.width = '100%';
             gradingProgressText.textContent = '思路生成完成！';
-            
+
             setTimeout(() => {
                 gradingProgress.classList.add('hidden');
                 displayGuidanceResult(result);
                 gradingResult.classList.remove('hidden');
                 showToast('写作思路已生成', 'success');
             }, 500);
-            
+
         } catch (error) {
             console.error('思路生成失败:', error);
             gradingProgress.classList.add('hidden');
@@ -2032,28 +1315,28 @@ function initContinuationMode() {
             showToast('思路生成失败: ' + error.message, 'error');
         }
     });
-    
+
     // 开始批改
     startGradingBtn.addEventListener('click', async () => {
         try {
             gradingInput.classList.add('hidden');
             gradingProgress.classList.remove('hidden');
             gradingResult.classList.add('hidden');
-            
+
             const topic = gradingTopic.value;
             const original = gradingOriginal.value;
             const content = gradingContent.value;
             const model = gradingModel.value;
-            
+
             gradingTimeEst.textContent = '预计需要 15-20 秒';
-            
+
             // 模拟进度条
             let progress = 0;
             const progressInterval = setInterval(() => {
                 progress += Math.random() * 8;
                 if (progress > 90) progress = 90;
                 gradingProgressBar.style.width = `${progress}%`;
-                
+
                 if (progress < 30) {
                     gradingProgressText.textContent = 'AI正在阅读原文...';
                 } else if (progress < 60) {
@@ -2062,20 +1345,20 @@ function initContinuationMode() {
                     gradingProgressText.textContent = 'AI正在生成批改报告...';
                 }
             }, 500);
-            
+
             const result = await gradeContinuation(topic, original, content, model);
-            
+
             clearInterval(progressInterval);
             gradingProgressBar.style.width = '100%';
             gradingProgressText.textContent = '批改完成！';
-            
+
             setTimeout(() => {
                 gradingProgress.classList.add('hidden');
                 displayGradingResult(result);
                 gradingResult.classList.remove('hidden');
                 showToast('批改完成', 'success');
             }, 500);
-            
+
         } catch (error) {
             console.error('批改失败:', error);
             gradingProgress.classList.add('hidden');
@@ -2083,7 +1366,7 @@ function initContinuationMode() {
             showToast('批改失败: ' + error.message, 'error');
         }
     });
-    
+
     // 显示批改结果
     function displayGradingResult(result) {
         let data;
@@ -2107,27 +1390,27 @@ function initContinuationMode() {
                 tips: '请重试'
             };
         }
-        
+
         // 更新总分
         totalScoreEl.textContent = `${data.totalScore}/25`;
-        
+
         // 更新星级
         const stars = Math.round((data.totalScore / 25) * 5);
         scoreStarsEl.textContent = '⭐'.repeat(stars) + '☆'.repeat(5 - stars);
-        
+
         // 更新分项得分
         contentScoreEl.textContent = `${data.scores.content}/8`;
         languageScoreEl.textContent = `${data.scores.language}/8`;
         structureScoreEl.textContent = `${data.scores.structure}/5`;
         normScoreEl.textContent = `${data.scores.norm}/4`;
-        
+
         // 构建详细批改卡片
         gradingResultContent.innerHTML = `
             <div class="grading-card">
                 <h4>✅ 内容点评</h4>
                 <div class="content">${data.contentReview}</div>
             </div>
-            
+
             <div class="grading-card">
                 <h4>✨ 语言亮点</h4>
                 <div class="content">
@@ -2136,7 +1419,7 @@ function initContinuationMode() {
                     </ul>
                 </div>
             </div>
-            
+
             <div class="grading-card">
                 <h4>⚠️ 存在问题</h4>
                 <div class="content">
@@ -2145,37 +1428,37 @@ function initContinuationMode() {
                     </ul>
                 </div>
             </div>
-            
+
             <div class="grading-card">
                 <h4>💡 改进建议</h4>
                 <div class="content">${data.suggestions}</div>
             </div>
-            
+
             <div class="grading-card model-answer-card">
                 <h4>📖 范文参考（约130词）</h4>
                 <div class="content">${data.modelAnswer}</div>
             </div>
-            
+
             <div class="grading-card">
                 <h4>🎯 提分秘诀</h4>
                 <div class="content">${data.tips}</div>
             </div>
         `;
     }
-    
+
     // 显示写作思路
     function displayGuidanceResult(result) {
         // 将Markdown格式的文本转换为分块卡片
         const sections = result.split(/\n(?=\d\.\s\*\*)/);
-        
+
         const htmlContent = sections.map(section => {
             if (!section.trim()) return '';
-            
+
             const titleMatch = section.match(/\*\*(.*?)\*\*/);
             const title = titleMatch ? titleMatch[1] : '详情';
-            
+
             let content = section.replace(/\d\.\s\*\*(.*?)\*\*\n?/, '').trim();
-            
+
             // 进一步处理内容中的Markdown
             content = content
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // 加粗
@@ -2192,7 +1475,7 @@ function initContinuationMode() {
 
         gradingResult.innerHTML = htmlContent;
     }
-    
+
     // 批改结果按钮
     copyResultBtn.addEventListener('click', () => {
         const text = gradingResultContent.innerText;
@@ -2200,7 +1483,7 @@ function initContinuationMode() {
             showToast('已复制到剪贴板', 'success');
         });
     });
-    
+
     downloadResultBtn.addEventListener('click', () => {
         const totalScore = totalScoreEl.textContent;
         const text = `
@@ -2212,10 +1495,10 @@ ${gradingResultContent.innerText}
 
 批改时间：${new Date().toLocaleString('zh-CN')}
         `.trim();
-        
+
         downloadTextFile(text, `读后续写批改报告_${new Date().toISOString().slice(0, 10)}.txt`);
     });
-    
+
     newGradingBtn.addEventListener('click', () => {
         gradingResult.classList.add('hidden');
         gradingInput.classList.remove('hidden');
@@ -2234,98 +1517,34 @@ ${gradingResultContent.innerText}
 // ========================================
 
 // 普通OCR
-async function callOCR(imageBase64, model, apiKey = null) {
-    const finalApiKey = apiKey || API_CONFIG.apiKey;
-    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${finalApiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{
-                role: "user",
-                content: [
-                    {
-                        type: "text",
-                        text: `请识别这张图片中的所有文字内容。要求：
-1. 准确识别所有文字（中文、英文、数字、符号）
-2. 保持原有格式和布局
-3. 如果是表格，保持表格结构
-4. 只输出识别的文字，不要添加任何解释
-
-直接输出识别结果：`
-                    },
-                    {
-                        type: "image_url",
-                        image_url: { url: imageBase64 }
-                    }
-                ]
-            }],
-            max_tokens: 4000,
-            temperature: 0.1
-        })
-    });
-    
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `HTTP ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return {
-        text: data.choices[0].message.content.trim(),
-        model: model
-    };
+async function callOCR(file, model = 'mineru-vlm') {
+    return callMineruOCR(file, model);
 }
 
 // 作文OCR
-async function callEssayOCR(imageBase64, model, apiKey = null) {
-    const finalApiKey = apiKey || API_CONFIG.apiKey;
-    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
+async function callEssayOCR(file, model = 'mineru-vlm') {
+    return callMineruOCR(file, model);
+}
+
+async function callMineruOCR(file, model = 'mineru-vlm') {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    formData.append('model', model);
+
+    const response = await fetch(MINERU_OCR_ENDPOINT, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${finalApiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{
-                role: "user",
-                content: [
-                    {
-                        type: "text",
-                        text: `请识别这张英语作文图片中的所有文字。这可能是高考英语应用文作文的题目要求或学生手写作文。
-
-要求：
-1. 准确识别所有英文内容（可能有手写体）
-2. 保持拼写原样（即使有错误）
-3. 保持段落和换行结构
-4. 只输出识别的文字，不要添加评论
-
-直接输出识别的文字：`
-                    },
-                    {
-                        type: "image_url",
-                        image_url: { url: imageBase64 }
-                    }
-                ]
-            }],
-            max_tokens: 4000,
-            temperature: 0.1
-        })
+        body: formData
     });
-    
+
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `HTTP ${response.status}`);
+        throw new Error(data.error || `HTTP ${response.status}`);
     }
-    
-    const data = await response.json();
+
     return {
-        text: data.choices[0].message.content.trim(),
-        model: model
+        text: (data.text || '').trim(),
+        model: data.model || 'mineru-vlm',
+        fileName: data.fileName || file.name
     };
 }
 
@@ -2334,7 +1553,7 @@ async function gradeEssay(topic, essay, model) {
     const prompt = APPLICATION_GRADING_PROMPT
         .replace('{TOPIC}', topic)
         .replace('{ESSAY}', essay);
-    
+
     const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -2351,12 +1570,12 @@ async function gradeEssay(topic, essay, model) {
             temperature: 0.7
         })
     });
-    
+
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error?.message || `HTTP ${response.status}`);
     }
-    
+
     const data = await response.json();
     return data.choices[0].message.content.trim();
 }
@@ -2364,7 +1583,7 @@ async function gradeEssay(topic, essay, model) {
 // 获取写作思路
 async function getWritingGuidance(topic, model) {
     const prompt = WRITING_GUIDANCE_PROMPT.replace('{TOPIC}', topic);
-    
+
     const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -2381,12 +1600,12 @@ async function getWritingGuidance(topic, model) {
             temperature: 0.7
         })
     });
-    
+
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error?.message || `HTTP ${response.status}`);
     }
-    
+
     const data = await response.json();
     return data.choices[0].message.content.trim();
 }
@@ -2397,7 +1616,7 @@ async function gradeContinuation(topic, original, content, model) {
         .replace('{TOPIC}', topic)
         .replace('{ORIGINAL}', original)
         .replace('{CONTINUATION}', content);
-    
+
     const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -2414,12 +1633,12 @@ async function gradeContinuation(topic, original, content, model) {
             temperature: 0.7
         })
     });
-    
+
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error?.message || `HTTP ${response.status}`);
     }
-    
+
     const data = await response.json();
     return data.choices[0].message.content.trim();
 }
@@ -2427,7 +1646,7 @@ async function gradeContinuation(topic, original, content, model) {
 // 获取读后续写思路指导
 async function getContinuationGuidance(topic, model) {
     const prompt = CONTINUATION_GUIDANCE_PROMPT.replace('{TOPIC}', topic);
-    
+
     const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -2444,12 +1663,12 @@ async function getContinuationGuidance(topic, model) {
             temperature: 0.7
         })
     });
-    
+
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error?.message || `HTTP ${response.status}`);
     }
-    
+
     const data = await response.json();
     return data.choices[0].message.content.trim();
 }
@@ -2458,13 +1677,88 @@ async function getContinuationGuidance(topic, model) {
 // 工具函数
 // ========================================
 
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+
+function isPdfFile(file) {
+    return file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+}
+
+function isImageFile(file) {
+    return file.type.startsWith('image/');
+}
+
+function formatFileSize(size) {
+    if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
+    return `${(size / 1024).toFixed(1)} KB`;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function validateOcrFile(file, showError = true) {
+    const validImageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    const isValidImage = validImageTypes.includes(file.type);
+    const isValidPdf = isPdfFile(file);
+
+    if (!isValidImage && !isValidPdf) {
+        if (showError) showToast('请选择图片或 PDF 文件', 'error');
+        return false;
+    }
+
+    if (file.size > 200 * 1024 * 1024) {
+        if (showError) showToast('文件大小不能超过 200MB', 'error');
+        return false;
+    }
+
+    return true;
+}
+
+function renderFilePreviewItem(previewItem, file) {
+    const safeName = escapeHtml(file.name);
+    const safeSize = escapeHtml(formatFileSize(file.size));
+    const media = isImageFile(file)
+        ? `<img src="${URL.createObjectURL(file)}" alt="预览">`
+        : `<div class="file-preview-pdf">PDF</div>`;
+
+    previewItem.innerHTML = `
+        ${media}
+        <div class="info">
+            <div class="name">${safeName}</div>
+            <div class="size">${safeSize}</div>
+        </div>
+        <button class="remove-btn" type="button">删除</button>
+    `;
+}
+
+function renderNormalPreview(previewImg, file) {
+    const host = previewImg.parentElement;
+    let placeholder = host.querySelector('.file-preview-placeholder');
+
+    if (isImageFile(file)) {
+        if (placeholder) placeholder.remove();
+        previewImg.style.display = '';
+        previewImg.src = URL.createObjectURL(file);
+        previewImg.alt = file.name;
+        return;
+    }
+
+    previewImg.removeAttribute('src');
+    previewImg.style.display = 'none';
+    if (!placeholder) {
+        placeholder = document.createElement('div');
+        placeholder.className = 'file-preview-placeholder';
+        host.appendChild(placeholder);
+    }
+    placeholder.innerHTML = `
+        <div class="file-preview-pdf large">PDF</div>
+        <div class="file-preview-name">${escapeHtml(file.name)}</div>
+        <div class="file-preview-size">${escapeHtml(formatFileSize(file.size))}</div>
+    `;
 }
 
 function validateImageFile(file, showError = true) {
@@ -2473,12 +1767,12 @@ function validateImageFile(file, showError = true) {
         if (showError) showToast('请选择图片文件 (JPG, PNG, WebP)', 'error');
         return false;
     }
-    
+
     if (file.size > 10 * 1024 * 1024) {
         if (showError) showToast('文件大小不能超过10MB', 'error');
         return false;
     }
-    
+
     return true;
 }
 
@@ -2490,7 +1784,7 @@ function countWords(text) {
 function updateWordCount(text, countEl, hintEl) {
     const count = countWords(text);
     countEl.textContent = `字数: ${count} 词`;
-    
+
     if (count === 0) {
         hintEl.textContent = '建议: 80词左右';
         hintEl.className = 'text-xs text-[#3A3632] opacity-60';
@@ -2521,7 +1815,7 @@ function showToast(message, type = 'success') {
     toast.className = type === 'success' ? 'success-toast' : 'error-toast';
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.style.animation = 'slideIn 0.3s ease-out reverse';
         setTimeout(() => toast.remove(), 300);

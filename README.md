@@ -40,8 +40,8 @@
 ### 📸 普通 OCR 识别
 
 - ✅ **高精度识别** - 支持中英文、数字、符号、表格
-- ✅ **多模型支持** - Gemini Flash、Qwen3-VL、GPT-5 Mini
-- ✅ **快速响应** - 平均识别时间 2-5 秒
+- ✅ **MinerU 精准解析** - 支持图片和 PDF，适合扫描件、表格和复杂版式
+- ✅ **安全 Token 配置** - OCR Token 仅保存在 Netlify 环境变量中
 - ✅ **一键复制** - 识别结果可直接复制或下载
 
 ### ✍️ 英语作文批改（15分制）
@@ -182,6 +182,7 @@ php -S localhost:8000
      ```
      API_BASE_URL = https://api.st0722.top/v1
      API_KEY = your-api-key-here
+     MINERU_API_TOKEN = your-mineru-token
      ```
 
 6. **部署**
@@ -257,7 +258,8 @@ netlify deploy --prod
 | 变量名 | 说明 | 示例 |
 |--------|------|------|
 | `API_BASE_URL` | API 基础地址 | `https://api.openai.com/v1` |
-| `API_KEY` | API 密钥 | `sk-...` |
+| `API_KEY` | 作文批改/写作思路模型密钥 | `sk-...` |
+| `MINERU_API_TOKEN` | MinerU OCR Token（Netlify 环境变量） | `ey...` |
 
 ---
 
@@ -265,11 +267,7 @@ netlify deploy --prod
 
 #### OCR 识别模型
 
-| 模型 | 提供商 | 速度 | 准确度 | 推荐场景 |
-|------|--------|------|--------|----------|
-| `gemini-flash-lite-latest` | Google | ⚡⚡⚡ | ⭐⭐⭐⭐ | 快速识别 |
-| `Qwen3-VL-235B` | Alibaba | ⚡⚡ | ⭐⭐⭐⭐⭐ | 高精度识别 |
-| `gpt-5-mini` | OpenAI | ⚡⚡⚡ | ⭐⭐⭐⭐ | 通用识别 |
+OCR 统一使用 MinerU 精准解析接口，默认模型版本为 `vlm`。作文批改和写作思路仍使用 OpenAI 兼容文本模型配置。
 
 #### 批改模型
 
@@ -286,10 +284,9 @@ netlify deploy --prod
 ### 📸 普通 OCR 识别
 
 1. 切换到 **"普通 OCR"** 模式
-2. 拖拽或点击上传图片（支持 JPG、PNG、WebP）
-3. 选择识别模型
-4. 等待识别完成（2-5秒）
-5. 复制或下载识别结果
+2. 拖拽或点击上传图片/PDF（支持 JPG、PNG、WebP、PDF）
+3. 等待 MinerU 解析完成
+4. 复制或下载识别结果
 
 **支持的内容**：
 - ✅ 中文、英文、数字、符号

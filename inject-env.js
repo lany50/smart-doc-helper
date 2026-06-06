@@ -9,6 +9,11 @@ console.log('🔧 开始注入环境变量...');
 const htmlPath = path.join(__dirname, 'index.html');
 let html = fs.readFileSync(htmlPath, 'utf-8');
 
+html = html.replace(
+    /\n<script>\s*\/\/ Netlify[\s\S]*?window\.NETLIFY_CONFIG[\s\S]*?<\/script>\s*\n/g,
+    '\n'
+);
+
 // 生成环境变量注入脚本
 const envScript = `
 <script>
