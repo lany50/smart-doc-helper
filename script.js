@@ -3,42 +3,15 @@
 (function () {
 
 // ========================================
-// API配置 - 支持多种配置方式
+// API端点
 // ========================================
 
-const API_CONFIG = (() => {
-    // 优先级1: Netlify环境变量（通过页面注入）
-    if (typeof window.NETLIFY_CONFIG !== 'undefined' && window.NETLIFY_CONFIG.apiKey) {
-        console.log('🚀 使用Netlify环境变量');
-        return {
-            baseURL: window.NETLIFY_CONFIG.baseURL || 'https://api.chatst.org/v1',
-            apiKey: window.NETLIFY_CONFIG.apiKey
-        };
-    }
-
-    // 优先级2: 本地配置文件（开发环境）
-    if (typeof window.LOCAL_API_CONFIG !== 'undefined') {
-        console.log('💻 使用本地配置文件');
-        return window.LOCAL_API_CONFIG;
-    }
-
-    // 优先级3: 从老版本config.js读取（兼容）
-    if (typeof window.API_CONFIG !== 'undefined' && window.API_CONFIG && window.API_CONFIG.apiKey) {
-        console.log('💻 使用兼容配置');
-        return window.API_CONFIG;
-    }
-
-    console.warn('未找到API配置，将以未配置状态启动');
-    return {
-        baseURL: 'https://api.chatst.org/v1',
-        apiKey: ''  // 空密钥，会导致API调用失败
-    };
-})();
+const MINERU_OCR_ENDPOINT = window.NETLIFY_CONFIG?.ocrEndpoint || '/.netlify/functions/mineru-ocr';
+const TEXT_MODEL_ENDPOINT = window.NETLIFY_CONFIG?.textModelEndpoint || '/.netlify/functions/chat-completion';
 
 console.log('API配置状态:', {
-    baseURL: API_CONFIG.baseURL,
-    hasKey: !!API_CONFIG.apiKey,
-    keyLength: API_CONFIG.apiKey ? API_CONFIG.apiKey.length : 0
+    ocrEndpoint: MINERU_OCR_ENDPOINT,
+    textModelEndpoint: TEXT_MODEL_ENDPOINT
 });
 // 应用文批改提示词（满分15分，字数80词左右）
 const APPLICATION_GRADING_PROMPT = `你是一名精通中国高考英语应用文写作指导的老师，具备强大的逻辑分析和语言润色能力。
@@ -257,9 +230,17 @@ const CONTINUATION_GUIDANCE_PROMPT = `你是一名精通中国高考英语读后
 请用简洁清晰的中文讲解，帮助学生快速理解写作思路。`;
 
 // 全局变量
-let uploadedImages = []; // 存储上传的图片
+let uploadedImages = []; // 存储上传文件及手动分区
 let ocrResults = []; // 存储OCR结果
-const MINERU_OCR_ENDPOINT = '/.netlify/functions/mineru-ocr';
+const APPLICATION_OCR_ROLE_OPTIONS = [
+    { value: 'topic', label: '题目' },
+    { value: 'essay', label: '作文' }
+];
+const CONTINUATION_OCR_ROLE_OPTIONS = [
+    { value: 'topic', label: '题目' },
+    { value: 'original', label: '原文' },
+    { value: 'continuation', label: '续写' }
+];
 
 // 等待DOM加载完成
 document.addEventListener('DOMContentLoaded', function() {
@@ -545,7 +526,10 @@ function initEssayMode() {
         const validFiles = files.filter(file => validateOcrFile(file, false));
 
         validFiles.forEach(file => {
-            uploadedImages.push(file);
+            uploadedImages.push({
+                file,
+                role: uploadedImages.length === 0 ? 'topic' : 'essay'
+            });
         });
 
         updateImagePreviewList();
@@ -560,10 +544,16 @@ function initEssayMode() {
     function updateImagePreviewList() {
         imagePreviewList.innerHTML = '';
 
-        uploadedImages.forEach((file, index) => {
+        uploadedImages.forEach((item, index) => {
             const previewItem = document.createElement('div');
             previewItem.className = 'image-preview-item';
-            renderFilePreviewItem(previewItem, file);
+            renderFilePreviewItem(previewItem, item, {
+                roleOptions: APPLICATION_OCR_ROLE_OPTIONS,
+                onRoleChange: (role) => {
+                    uploadedImages[index].role = role;
+                    updateImagePreviewList();
+                }
+            });
             previewItem.querySelector('.remove-btn').addEventListener('click', () => {
                 uploadedImages.splice(index, 1);
                 updateImagePreviewList();
@@ -591,45 +581,55 @@ function initEssayMode() {
             ocrResults = [];
             const model = ocrModel.value;
 
-            // 逐个识别图片
+            // 逐个识别文件，单个失败不影响其他文件
             for (let i = 0; i < uploadedImages.length; i++) {
-                const file = uploadedImages[i];
+                const item = uploadedImages[i];
+                const file = item.file;
 
-                // 更新进度
                 progressCount.textContent = `${i + 1}/${uploadedImages.length}`;
-                progressText.textContent = `正在识别第 ${i + 1} 张图片...`;
-                progressBar.style.width = `${((i) / uploadedImages.length) * 100}%`;
+                progressText.textContent = `正在识别第 ${i + 1} 个文件...`;
+                progressBar.style.width = `${(i / uploadedImages.length) * 100}%`;
 
+                try {
+                    const result = await callEssayOCR(file, model);
+                    ocrResults.push({
+                        ok: true,
+                        role: item.role,
+                        text: result.text,
+                        fileName: result.fileName || file.name
+                    });
+                } catch (error) {
+                    console.warn('单个文件OCR失败:', file.name, error);
+                    ocrResults.push({
+                        ok: false,
+                        role: item.role,
+                        text: '',
+                        fileName: file.name,
+                        error: error.message
+                    });
+                }
 
-
-                // 调用OCR
-                const result = await callEssayOCR(file, model);
-                ocrResults.push(result.text);
-
-                // 更新进度
                 progressBar.style.width = `${((i + 1) / uploadedImages.length) * 100}%`;
             }
 
-            // 完成
-            progressText.textContent = '正在自动拆分题目和作文...';
-
-            // 合并所有识别结果
-            const mergedText = ocrResults.join('\n\n---\n\n');
-            const splitModel = gradingModel ? gradingModel.value : 'deepseek-v4-flash';
-            let splitResult = null;
-            let splitError = null;
-            try {
-                splitResult = await splitApplicationOcrText(mergedText, splitModel);
-            } catch (error) {
-                console.warn('应用文OCR拆分失败:', error);
-                splitError = error;
+            const successCount = ocrResults.filter(result => result.ok).length;
+            if (successCount === 0) {
+                throw new Error('所有文件都识别失败，请检查图片清晰度或稍后重试');
             }
+
+            progressText.textContent = '正在按标记整理题目和作文...';
+
+            const groupedText = combineOcrByRoles(ocrResults, {
+                topic: ['topic'],
+                essay: ['essay']
+            });
+            const mergedText = formatRoleOcrText(ocrResults, APPLICATION_OCR_ROLE_OPTIONS);
 
             setTimeout(() => {
                 progressDiv.classList.add('hidden');
 
-                const topicText = splitResult?.topic || '';
-                const essayText = splitResult?.essay || mergedText;
+                const topicText = groupedText.topic;
+                const essayText = groupedText.essay;
 
                 ocrTopicTextarea.value = topicText;
                 ocrResultTextarea.value = essayText;
@@ -639,7 +639,13 @@ function initEssayMode() {
                 sendBtn.disabled = !essayText.trim();
 
                 ocrResult.classList.remove('hidden');
-                showToast(splitError ? '识别完成，AI拆分失败，请手动调整' : `成功识别并拆分 ${uploadedImages.length} 个文件`, splitError ? 'error' : 'success');
+                const failedCount = ocrResults.length - successCount;
+                showToast(
+                    failedCount > 0
+                        ? `已整理 ${successCount} 个文件，${failedCount} 个文件识别失败`
+                        : `成功识别并整理 ${successCount} 个文件`,
+                    failedCount > 0 ? 'error' : 'success'
+                );
 
                 // 清空图片列表
                 uploadedImages = [];
@@ -1126,7 +1132,10 @@ function initContinuationMode() {
         const validFiles = files.filter(file => validateOcrFile(file, false));
 
         validFiles.forEach(file => {
-            continuationImages.push(file);
+            continuationImages.push({
+                file,
+                role: continuationImages.length === 0 ? 'topic' : 'continuation'
+            });
         });
 
         updateImagePreviewList();
@@ -1141,10 +1150,16 @@ function initContinuationMode() {
     function updateImagePreviewList() {
         imagePreviewList.innerHTML = '';
 
-        continuationImages.forEach((file, index) => {
+        continuationImages.forEach((item, index) => {
             const previewItem = document.createElement('div');
             previewItem.className = 'image-preview-item';
-            renderFilePreviewItem(previewItem, file);
+            renderFilePreviewItem(previewItem, item, {
+                roleOptions: CONTINUATION_OCR_ROLE_OPTIONS,
+                onRoleChange: (role) => {
+                    continuationImages[index].role = role;
+                    updateImagePreviewList();
+                }
+            });
             previewItem.querySelector('.remove-btn').addEventListener('click', () => {
                 continuationImages.splice(index, 1);
                 updateImagePreviewList();
@@ -1172,44 +1187,56 @@ function initContinuationMode() {
             const ocrResults = [];
             const model = ocrModel.value;
 
-            // 逐个识别图片
+            // 逐个识别文件，单个失败不影响其他文件
             for (let i = 0; i < continuationImages.length; i++) {
-                const file = continuationImages[i];
+                const item = continuationImages[i];
+                const file = item.file;
 
-                // 更新进度
                 progressCount.textContent = `${i + 1}/${continuationImages.length}`;
-                progressText.textContent = `正在识别第 ${i + 1} 张图片...`;
-                progressBar.style.width = `${((i) / continuationImages.length) * 100}%`;
+                progressText.textContent = `正在识别第 ${i + 1} 个文件...`;
+                progressBar.style.width = `${(i / continuationImages.length) * 100}%`;
 
+                try {
+                    const result = await callEssayOCR(file, model);
+                    ocrResults.push({
+                        ok: true,
+                        role: item.role,
+                        text: result.text,
+                        fileName: result.fileName || file.name
+                    });
+                } catch (error) {
+                    console.warn('单个文件OCR失败:', file.name, error);
+                    ocrResults.push({
+                        ok: false,
+                        role: item.role,
+                        text: '',
+                        fileName: file.name,
+                        error: error.message
+                    });
+                }
 
-
-                // 调用OCR
-                const result = await callEssayOCR(file, model);
-                ocrResults.push(result.text);
-
-                // 更新进度
                 progressBar.style.width = `${((i + 1) / continuationImages.length) * 100}%`;
             }
 
-            // 完成
-            progressText.textContent = '正在自动拆分题目、原文和续写...';
-            const mergedText = ocrResults.join('\n\n---\n\n');
-            const splitModel = gradingModel ? gradingModel.value : 'deepseek-v4-flash';
-            let splitResult = null;
-            let splitError = null;
-            try {
-                splitResult = await splitContinuationOcrText(mergedText, splitModel);
-            } catch (error) {
-                console.warn('读后续写OCR拆分失败:', error);
-                splitError = error;
+            const successCount = ocrResults.filter(result => result.ok).length;
+            if (successCount === 0) {
+                throw new Error('所有文件都识别失败，请检查图片清晰度或稍后重试');
             }
+
+            progressText.textContent = '正在按标记整理题目、原文和续写...';
+            const groupedText = combineOcrByRoles(ocrResults, {
+                topic: ['topic'],
+                original: ['original'],
+                continuation: ['continuation']
+            });
+            const mergedText = formatRoleOcrText(ocrResults, CONTINUATION_OCR_ROLE_OPTIONS);
 
             setTimeout(() => {
                 progressDiv.classList.add('hidden');
 
-                topicTextarea.value = splitResult?.topic || ocrResults[0] || '';
-                originalTextarea.value = splitResult?.original || ocrResults[1] || '';
-                contentTextarea.value = splitResult?.continuation || ocrResults[2] || '';
+                topicTextarea.value = groupedText.topic;
+                originalTextarea.value = groupedText.original;
+                contentTextarea.value = groupedText.continuation;
                 rawOcrTextarea.value = mergedText;
 
                 // 更新字数统计
@@ -1218,7 +1245,13 @@ function initContinuationMode() {
                 syncContinuationOcrToGrading();
 
                 ocrResult.classList.remove('hidden');
-                showToast(splitError ? '识别完成，AI拆分失败，请手动调整' : `成功识别并拆分 ${continuationImages.length} 个文件`, splitError ? 'error' : 'success');
+                const failedCount = ocrResults.length - successCount;
+                showToast(
+                    failedCount > 0
+                        ? `已整理 ${successCount} 个文件，${failedCount} 个文件识别失败`
+                        : `成功识别并整理 ${successCount} 个文件`,
+                    failedCount > 0 ? 'error' : 'success'
+                );
 
                 // 清空图片列表
                 continuationImages = [];
@@ -1634,35 +1667,43 @@ ${rawText}`;
 }
 
 async function callJsonCompletion(prompt, model, maxTokens) {
-    if (!API_CONFIG || !API_CONFIG.apiKey) {
-        throw new Error('API 未配置，无法自动拆分 OCR 文本');
-    }
+    const content = await callTextCompletion({
+        model,
+        messages: [{
+            role: 'user',
+            content: prompt
+        }],
+        maxTokens,
+        temperature: 0.1
+    });
+    return parseJsonObject(content);
+}
 
-    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
+async function callTextCompletion({ model, messages, maxTokens, temperature = 0.7 }) {
+    const response = await fetch(TEXT_MODEL_ENDPOINT, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_CONFIG.apiKey}`
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             model,
-            messages: [{
-                role: 'user',
-                content: prompt
-            }],
+            messages,
             max_tokens: maxTokens,
-            temperature: 0.1
+            temperature
         })
     });
 
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `HTTP ${response.status}`);
+        throw new Error(data.error || `HTTP ${response.status}`);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    return parseJsonObject(content);
+    const content = data.content || data.choices?.[0]?.message?.content || '';
+    if (!content.trim()) {
+        throw new Error('AI 返回内容为空');
+    }
+
+    return content.trim();
 }
 
 function parseJsonObject(output) {
@@ -1685,60 +1726,30 @@ async function gradeEssay(topic, essay, model) {
         .replace('{TOPIC}', topic)
         .replace('{ESSAY}', essay);
 
-    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_CONFIG.apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{
-                role: "user",
-                content: prompt
-            }],
-            max_tokens: 4000,
-            temperature: 0.7
-        })
+    return callTextCompletion({
+        model,
+        messages: [{
+            role: "user",
+            content: prompt
+        }],
+        maxTokens: 4000,
+        temperature: 0.7
     });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content.trim();
 }
 
 // 获取写作思路
 async function getWritingGuidance(topic, model) {
     const prompt = WRITING_GUIDANCE_PROMPT.replace('{TOPIC}', topic);
 
-    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_CONFIG.apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{
-                role: "user",
-                content: prompt
-            }],
-            max_tokens: 3000,
-            temperature: 0.7
-        })
+    return callTextCompletion({
+        model,
+        messages: [{
+            role: "user",
+            content: prompt
+        }],
+        maxTokens: 3000,
+        temperature: 0.7
     });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content.trim();
 }
 
 // 批改读后续写
@@ -1748,60 +1759,30 @@ async function gradeContinuation(topic, original, content, model) {
         .replace('{ORIGINAL}', original)
         .replace('{CONTINUATION}', content);
 
-    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_CONFIG.apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{
-                role: "user",
-                content: prompt
-            }],
-            max_tokens: 4000,
-            temperature: 0.7
-        })
+    return callTextCompletion({
+        model,
+        messages: [{
+            role: "user",
+            content: prompt
+        }],
+        maxTokens: 4000,
+        temperature: 0.7
     });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content.trim();
 }
 
 // 获取读后续写思路指导
 async function getContinuationGuidance(topic, model) {
     const prompt = CONTINUATION_GUIDANCE_PROMPT.replace('{TOPIC}', topic);
 
-    const response = await fetch(`${API_CONFIG.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_CONFIG.apiKey}`
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [{
-                role: "user",
-                content: prompt
-            }],
-            max_tokens: 3000,
-            temperature: 0.7
-        })
+    return callTextCompletion({
+        model,
+        messages: [{
+            role: "user",
+            content: prompt
+        }],
+        maxTokens: 3000,
+        temperature: 0.7
     });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content.trim();
 }
 
 // ========================================
@@ -1849,12 +1830,28 @@ function validateOcrFile(file, showError = true) {
     return true;
 }
 
-function renderFilePreviewItem(previewItem, file) {
+function renderFilePreviewItem(previewItem, fileItem, options = {}) {
+    const file = fileItem.file || fileItem;
+    const role = fileItem.role;
+    const roleOptions = options.roleOptions || [];
     const safeName = escapeHtml(file.name);
     const safeSize = escapeHtml(formatFileSize(file.size));
     const media = isImageFile(file)
         ? `<img src="${URL.createObjectURL(file)}" alt="预览">`
         : `<div class="file-preview-pdf">PDF</div>`;
+    const roleControls = roleOptions.length > 0
+        ? `<div class="file-role-group" role="group" aria-label="标记文件类型">
+            ${roleOptions.map(option => `
+                <button
+                    class="file-role-btn ${option.value === role ? 'active' : ''}"
+                    type="button"
+                    data-role="${escapeHtml(option.value)}"
+                    aria-pressed="${option.value === role ? 'true' : 'false'}">
+                    ${escapeHtml(option.label)}
+                </button>
+            `).join('')}
+        </div>`
+        : '';
 
     previewItem.innerHTML = `
         ${media}
@@ -1862,8 +1859,42 @@ function renderFilePreviewItem(previewItem, file) {
             <div class="name">${safeName}</div>
             <div class="size">${safeSize}</div>
         </div>
+        ${roleControls}
         <button class="remove-btn" type="button">删除</button>
     `;
+
+    if (roleOptions.length > 0 && typeof options.onRoleChange === 'function') {
+        previewItem.querySelectorAll('.file-role-btn').forEach(button => {
+            button.addEventListener('click', () => options.onRoleChange(button.dataset.role));
+        });
+    }
+}
+
+function getRoleLabel(role, roleOptions) {
+    return roleOptions.find(option => option.value === role)?.label || role || '未标记';
+}
+
+function combineOcrByRoles(results, roleMap) {
+    const grouped = {};
+    Object.entries(roleMap).forEach(([target, roles]) => {
+        grouped[target] = results
+            .filter(result => result.ok && roles.includes(result.role))
+            .map(result => result.text)
+            .filter(Boolean)
+            .join('\n\n');
+    });
+    return grouped;
+}
+
+function formatRoleOcrText(results, roleOptions) {
+    return results.map((result, index) => {
+        const label = getRoleLabel(result.role, roleOptions);
+        const title = `【${index + 1}. ${label} - ${result.fileName || '未命名文件'}】`;
+        const body = result.ok
+            ? (result.text || '（未识别到文字）')
+            : `识别失败：${result.error || '未知错误'}`;
+        return `${title}\n${body}`;
+    }).join('\n\n---\n\n');
 }
 
 function renderNormalPreview(previewImg, file) {

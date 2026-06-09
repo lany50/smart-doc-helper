@@ -111,27 +111,12 @@ cd smart-doc-helper
 
 #### 2️⃣ 配置 API 密钥
 
+文本模型和 OCR 密钥都放在服务端环境变量中，不再写入浏览器端 `config.js`：
+
 ```bash
-# 复制配置示例
-cp config.example.js config.js
-
-# 编辑 config.js，填入你的 API 密钥
-# Windows:
-notepad config.js
-
-# macOS/Linux:
-nano config.js
-```
-
-`config.js` 内容：
-
-```javascript
-window.LOCAL_API_CONFIG = {
-    baseURL: 'https://api.chatst.org/v1',  // API 基础地址
-    apiKey: 'your-api-key-here'             // 替换为你的 API 密钥
-};
-
-const API_CONFIG = window.LOCAL_API_CONFIG;
+API_BASE_URL=https://api.chatst.org/v1
+API_KEY=your-openai-compatible-api-key
+MINERU_API_TOKEN=your-mineru-token
 ```
 
 #### 3️⃣ 运行服务

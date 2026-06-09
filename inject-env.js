@@ -14,15 +14,15 @@ html = html.replace(
     '\n'
 );
 
-// 生成环境变量注入脚本
+// 生成站内端点注入脚本。密钥只保存在 Netlify Functions 环境变量中。
 const envScript = `
 <script>
-// Netlify环境变量注入
+// Netlify站内端点注入
 window.NETLIFY_CONFIG = {
-    baseURL: '${process.env.API_BASE_URL || 'https://api.chatst.org/v1'}',
-    apiKey: '${process.env.API_KEY || ''}'
+    textModelEndpoint: '/.netlify/functions/chat-completion',
+    ocrEndpoint: '/.netlify/functions/mineru-ocr'
 };
-console.log('✅ 环境变量已加载');
+console.log('✅ 站内端点已加载');
 </script>
 `;
 

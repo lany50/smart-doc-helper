@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能文档识别助手</title>
+    <title>粉彩作文小助手</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,7 +11,7 @@
     <!-- 自定义字体 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- 自定义样式 -->
     <link rel="stylesheet" href="style.css">
@@ -19,10 +19,7 @@
 <body class="ui-page">
     <div id="legacyApp">
     <!-- 装饰性背景 -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none">
-        <div class="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-[#F4A261] to-transparent opacity-20 blur-3xl"></div>
-        <div class="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-tr from-[#E07B39] to-transparent opacity-20 blur-3xl"></div>
-    </div>
+    <div class="classroom-backdrop" aria-hidden="true"></div>
 
     <!-- 顶部导航 -->
     <header class="relative z-10 px-6 py-6">
@@ -34,17 +31,17 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </div>
-                    <h1 class="text-2xl font-serif text-[#2D2A26]">智能文档助手</h1>
+                    <h1 class="text-2xl font-serif text-[#2D2A26]">粉彩作文小助手</h1>
                 </div>
             </div>
 
             <!-- 模式切换标签 -->
             <div class="flex gap-3">
                 <button id="normalModeBtn" class="mode-tab active px-6 py-3 rounded-xl font-medium transition-all duration-300">
-                    📄 普通OCR
+                    📄 普通 OCR
                 </button>
                 <button id="essayModeBtn" class="mode-tab px-6 py-3 rounded-xl font-medium transition-all duration-300">
-                    ✍️ 英语作文批改
+                    ✍️ 作文批改
                 </button>
             </div>
         </nav>
@@ -56,7 +53,7 @@
         <section id="normalMode" class="mode-content max-w-4xl mx-auto">
             <div class="text-center mb-8">
                 <h2 class="text-3xl font-serif text-[#2D2A26] mb-2">文档识别</h2>
-                <p class="text-[#3A3632] opacity-70">上传图片，快速提取文字内容</p>
+                <p class="text-[#3A3632] opacity-70">拍照或上传文件，快速提取文字内容</p>
             </div>
 
             <!-- OCR上传区 -->
@@ -135,7 +132,7 @@
         <section id="essayMode" class="mode-content hidden max-w-7xl mx-auto">
             <div class="text-center mb-8">
                 <h2 class="text-3xl font-serif text-[#2D2A26] mb-2">英语作文批改</h2>
-                <p class="text-[#3A3632] opacity-70">OCR识别作文 + AI智能批改</p>
+                <p class="text-[#3A3632] opacity-70">先标记题目和作文，再识别批改</p>
             </div>
 
             <!-- 作文类型选择 -->
@@ -165,12 +162,12 @@
                             <svg class="w-12 h-12 mx-auto text-[#E07B39] opacity-60 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                             </svg>
-                            <p class="text-sm text-[#3A3632] mb-2">📸 上传作文图片（支持多张）</p>
+                            <p class="text-sm text-[#3A3632] mb-2">📸 上传题目和作文图片（支持多张）</p>
                             <input type="file" id="essayFileInput" class="hidden" accept=".pdf,image/*" multiple>
                             <button id="essaySelectBtn" class="px-4 py-2 bg-gradient-to-r from-[#E07B39] to-[#F4A261] text-white rounded-full text-sm hover:shadow-lg transition-all">
                                 选择文件
                             </button>
-                            <p class="text-xs text-[#3A3632] opacity-60 mt-2">💡 可以分别拍摄题目和作文</p>
+                            <p class="text-xs text-[#3A3632] opacity-60 mt-2">💡 上传后先给每张图标记“题目”或“作文”</p>
                         </div>
 
                         <!-- 图片预览列表 -->
@@ -204,7 +201,7 @@
                                     <div class="flex items-center justify-between mb-2 flex-shrink-0">
                                         <label class="text-sm font-medium text-[#3A3632]">📌 题目要求</label>
                                     </div>
-                                    <textarea id="essayOcrTopic" class="ocr-textarea ocr-topic-textarea" placeholder="AI 会自动从 OCR 结果中拆出题目要求，可手动编辑..."></textarea>
+                                    <textarea id="essayOcrTopic" class="ocr-textarea ocr-topic-textarea" placeholder="系统会把标记为题目的 OCR 结果放到这里，可手动编辑..."></textarea>
                                 </div>
 
                                 <div class="ocr-edit-field">
@@ -214,7 +211,7 @@
                                             📋 复制作文
                                         </button>
                                     </div>
-                                    <textarea id="essayContent" class="ocr-textarea ocr-essay-textarea" placeholder="AI 会自动从 OCR 结果中拆出学生作文，可手动编辑..."></textarea>
+                                    <textarea id="essayContent" class="ocr-textarea ocr-essay-textarea" placeholder="系统会把标记为作文的 OCR 结果放到这里，可手动编辑..."></textarea>
                                     <div class="flex justify-between items-center mt-1 flex-shrink-0">
                                         <span id="essayWordCount" class="text-xs text-[#3A3632] opacity-60">字数: 0 词</span>
                                         <span id="essayWordHint" class="text-xs text-[#3A3632] opacity-60">建议: 80词左右</span>
@@ -236,7 +233,7 @@
                                 </button>
                             </div>
 
-                            <div class="ocr-status-note">AI 会自动拆分题目和作文；拆分不准时可直接在上方编辑。</div>
+                            <div class="ocr-status-note">系统会按你给图片打的标记整理内容；整理后仍可直接编辑。</div>
                         </div>
                     </div>
 
@@ -390,7 +387,7 @@
                             <button id="continuationSelectBtn" class="px-4 py-2 bg-gradient-to-r from-[#E07B39] to-[#F4A261] text-white rounded-full text-sm hover:shadow-lg transition-all">
                                 选择文件
                             </button>
-                            <p class="text-xs text-[#3A3632] opacity-60 mt-2">💡 可分别上传题目、原文和续写</p>
+                            <p class="text-xs text-[#3A3632] opacity-60 mt-2">💡 上传后给每张图标记“题目”“原文”或“续写”</p>
                         </div>
 
                         <!-- 图片预览列表 -->
@@ -469,7 +466,7 @@
                                 </button>
                             </div>
 
-                            <div class="ocr-status-note">AI 会自动拆分题目、原文和续写；拆分不准时可直接编辑。</div>
+                            <div class="ocr-status-note">系统会按你给图片打的标记整理题目、原文和续写；整理后仍可直接编辑。</div>
                         </div>
                     </div>
 
@@ -593,14 +590,13 @@
     <!-- 页脚 -->
     <footer class="relative z-10 px-6 py-8 mt-20 border-t border-[#F4A261]/20">
         <div class="max-w-7xl mx-auto text-center">
-            <p class="text-sm text-[#3A3632] opacity-50">© 2024 智能文档助手. 专为学习设计.</p>
+            <p class="text-sm text-[#3A3632] opacity-50">© 2024 粉彩作文小助手. 专为学习设计.</p>
         </div>
     </footer>
 
     </div>
 
     <!-- JavaScript -->
-    <script src="config.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
