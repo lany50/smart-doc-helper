@@ -40,8 +40,8 @@
 ### 📸 普通 OCR 识别
 
 - ✅ **高精度识别** - 支持中英文、数字、符号、表格
-- ✅ **MinerU 精准解析** - 支持图片和 PDF，适合扫描件、表格和复杂版式
-- ✅ **安全 Token 配置** - OCR Token 仅保存在 Netlify 环境变量中
+- ✅ **Gemini OCR 识别** - 使用 `gemini-3.5-flash` 读取图片和 PDF
+- ✅ **安全密钥配置** - API Key 仅保存在 Netlify 环境变量中
 - ✅ **一键复制** - 识别结果可直接复制或下载
 
 ### ✍️ 英语作文批改（15分制）
@@ -114,9 +114,9 @@ cd smart-doc-helper
 文本模型和 OCR 密钥都放在服务端环境变量中，不再写入浏览器端 `config.js`：
 
 ```bash
-API_BASE_URL=https://api.chatst.org/v1
+API_BASE_URL=https://api.chatst.org
 API_KEY=your-openai-compatible-api-key
-MINERU_API_TOKEN=your-mineru-token
+OCR_MODEL=gemini-3.5-flash
 ```
 
 #### 3️⃣ 运行服务
@@ -165,9 +165,9 @@ php -S localhost:8000
    - `Site settings` → `Environment variables`
    - 添加以下变量：
      ```
-     API_BASE_URL = https://api.chatst.org/v1
+     API_BASE_URL = https://api.chatst.org
      API_KEY = your-api-key-here
-     MINERU_API_TOKEN = your-mineru-token
+     OCR_MODEL = gemini-3.5-flash
      ```
 
 6. **部署**
@@ -242,9 +242,9 @@ netlify deploy --prod
 
 | 变量名 | 说明 | 示例 |
 |--------|------|------|
-| `API_BASE_URL` | API 基础地址 | `https://api.openai.com/v1` |
-| `API_KEY` | 作文批改/写作思路模型密钥 | `sk-...` |
-| `MINERU_API_TOKEN` | MinerU OCR Token（Netlify 环境变量） | `ey...` |
+| `API_BASE_URL` | OpenAI 兼容 API 基础地址 | `https://api.chatst.org` |
+| `API_KEY` | OCR/作文批改/写作思路模型密钥 | `sk-...` |
+| `OCR_MODEL` | OCR 使用的视觉模型 | `gemini-3.5-flash` |
 
 ---
 
@@ -252,7 +252,7 @@ netlify deploy --prod
 
 #### OCR 识别模型
 
-OCR 统一使用 MinerU 精准解析接口，默认模型版本为 `vlm`。作文批改和写作思路仍使用 OpenAI 兼容文本模型配置。
+OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-3.5-flash`。作文批改和写作思路仍使用 OpenAI 兼容文本模型配置。
 
 #### 批改模型
 
@@ -269,7 +269,7 @@ OCR 统一使用 MinerU 精准解析接口，默认模型版本为 `vlm`。作�
 
 1. 切换到 **"普通 OCR"** 模式
 2. 拖拽或点击上传图片/PDF（支持 JPG、PNG、WebP、PDF）
-3. 等待 MinerU 解析完成
+3. 等待 Gemini OCR 解析完成
 4. 复制或下载识别结果
 
 **支持的内容**：
@@ -436,7 +436,7 @@ OCR 统一使用 MinerU 精准解析接口，默认模型版本为 `vlm`。作�
 
 ### AI 模型
 
-- **OCR 模型** - MinerU 精准解析（vlm）
+- **OCR 模型** - gemini-3.5-flash
 - **语言模型** - deepseek-v4-flash、mimo-v2.5
 
 ### 部署

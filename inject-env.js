@@ -20,7 +20,7 @@ const envScript = `
 // Netlify站内端点注入
 window.NETLIFY_CONFIG = {
     textModelEndpoint: '/.netlify/functions/chat-completion',
-    ocrEndpoint: '/.netlify/functions/mineru-ocr'
+    ocrEndpoint: '/.netlify/functions/vision-ocr'
 };
 console.log('✅ 站内端点已加载');
 </script>

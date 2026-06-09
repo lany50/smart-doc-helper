@@ -6,11 +6,11 @@
 // API端点
 // ========================================
 
-const MINERU_OCR_ENDPOINT = window.NETLIFY_CONFIG?.ocrEndpoint || '/.netlify/functions/mineru-ocr';
+const OCR_ENDPOINT = window.NETLIFY_CONFIG?.ocrEndpoint || '/.netlify/functions/vision-ocr';
 const TEXT_MODEL_ENDPOINT = window.NETLIFY_CONFIG?.textModelEndpoint || '/.netlify/functions/chat-completion';
 
 console.log('API配置状态:', {
-    ocrEndpoint: MINERU_OCR_ENDPOINT,
+    ocrEndpoint: OCR_ENDPOINT,
     textModelEndpoint: TEXT_MODEL_ENDPOINT
 });
 // 应用文批改提示词（满分15分，字数80词左右）
@@ -1591,21 +1591,21 @@ ${gradingResultContent.innerText}
 // ========================================
 
 // 普通OCR
-async function callOCR(file, model = 'mineru-vlm') {
-    return callMineruOCR(file, model);
+async function callOCR(file, model = 'gemini-3.5-flash') {
+    return callVisionOCR(file, model);
 }
 
 // 作文OCR
-async function callEssayOCR(file, model = 'mineru-vlm') {
-    return callMineruOCR(file, model);
+async function callEssayOCR(file, model = 'gemini-3.5-flash') {
+    return callVisionOCR(file, model);
 }
 
-async function callMineruOCR(file, model = 'mineru-vlm') {
+async function callVisionOCR(file, model = 'gemini-3.5-flash') {
     const formData = new FormData();
     formData.append('file', file, file.name);
     formData.append('model', model);
 
-    const response = await fetch(MINERU_OCR_ENDPOINT, {
+    const response = await fetch(OCR_ENDPOINT, {
         method: 'POST',
         body: formData
     });
@@ -1617,7 +1617,7 @@ async function callMineruOCR(file, model = 'mineru-vlm') {
 
     return {
         text: (data.text || '').trim(),
-        model: data.model || 'mineru-vlm',
+        model: data.model || model,
         fileName: data.fileName || file.name
     };
 }

@@ -1,5 +1,5 @@
-const DEFAULT_BASE_URL = 'https://api.chatst.org/v1';
-const ALLOWED_MODELS = new Set(['deepseek-v4-flash', 'mimo-v2.5']);
+const DEFAULT_BASE_URL = 'https://api.chatst.org';
+const ALLOWED_MODELS = new Set(['deepseek-v4-flash', 'mimo-v2.5', 'gemini-3.5-flash']);
 const MAX_TOKENS_LIMIT = 6000;
 
 exports.handler = async (event) => {
@@ -20,9 +20,9 @@ exports.handler = async (event) => {
         const body = parseBody(event.body);
         validateCompletionRequest(body);
 
-        const baseURL = (process.env.API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+        const completionsUrl = buildChatCompletionsUrl(process.env.API_BASE_URL || DEFAULT_BASE_URL);
         const maxTokens = normalizeMaxTokens(body.max_tokens);
-        const upstreamResponse = await fetch(`${baseURL}/chat/completions`, {
+        const upstreamResponse = await fetch(completionsUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -97,6 +97,13 @@ function normalizeMaxTokens(value) {
     const tokens = Number(value || 3000);
     if (!Number.isFinite(tokens) || tokens <= 0) return 3000;
     return Math.min(Math.floor(tokens), MAX_TOKENS_LIMIT);
+}
+
+function buildChatCompletionsUrl(baseURL) {
+    const normalized = String(baseURL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+    if (/\/chat\/completions$/i.test(normalized)) return normalized;
+    if (/\/v\d+$/i.test(normalized)) return `${normalized}/chat/completions`;
+    return `${normalized}/v1/chat/completions`;
 }
 
 async function readJson(response) {
