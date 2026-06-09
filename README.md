@@ -1,8 +1,8 @@
 <div align="center">
 
-# 智能文档识别助手 📄✨
+# 粉彩作文小助手 ✍️✨
 
-**基于 AI 的 OCR 识别和英语作文批改工具**
+**基于 AI 的英语作文识别、批改和写作指导工具**
 
 [![GitHub release](https://img.shields.io/github/v/release/lany50/smart-doc-helper?color=blue)](https://github.com/lany50/smart-doc-helper/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -36,13 +36,6 @@
 ---
 
 ## ✨ 功能特性
-
-### 📸 普通 OCR 识别
-
-- ✅ **高精度识别** - 支持中英文、数字、符号、表格
-- ✅ **Gemini OCR 识别** - 使用 `gemini-3.5-flash` 读取图片和 PDF
-- ✅ **安全密钥配置** - API Key 仅保存在 Netlify 环境变量中
-- ✅ **一键复制** - 识别结果可直接复制或下载
 
 ### ✍️ 英语作文批改（15分制）
 
@@ -78,10 +71,6 @@
 ---
 
 ## 🎬 功能演示
-
-### 普通 OCR 识别
-
-
 
 ### 英语作文批改
 
@@ -271,27 +260,11 @@ OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-3.5-f
 
 ## 🎯 使用指南
 
-### 📸 普通 OCR 识别
-
-1. 切换到 **"普通 OCR"** 模式
-2. 拖拽或点击上传图片/PDF（支持 JPG、PNG、WebP、PDF）
-3. 等待 Gemini OCR 解析完成
-4. 复制或下载识别结果
-
-**支持的内容**：
-- ✅ 中文、英文、数字、符号
-- ✅ 印刷体和手写体
-- ✅ 表格和复杂排版
-- ✅ 最大 10MB 图片
-
----
-
 ### ✍️ 英语作文批改
 
 #### 完整流程
 
 1. **上传作文图片**
-   - 切换到 **"英语作文批改"** 模式
    - 拖拽或点击上传图片（支持多张）
    - 给每张图选择 **"题目"**、**"作文"** 标签；同一页都有时可以同时选
 
@@ -348,7 +321,7 @@ OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-3.5-f
 #### 完整流程
 
 1. **上传图片**
-   - 切换到 **"读后续写"** 模式
+   - 选择 **"读后续写"** 类型
    - 拖拽或点击上传图片（支持多张）
    - 给每张图选择 **"题目"**、**"原文"**、**"续写"** 标签；同一页有多类内容时可以同时选
 
@@ -531,7 +504,7 @@ git commit -m "docs: Update deployment guide"
 
 #### ✨ 新增
 
-- 📸 普通 OCR 识别功能
+- 📸 作文图片 OCR 识别功能
 - ✍️ 英语作文批改（15分制）
 - 💡 写作思路指导
 - 📱 响应式设计
@@ -612,6 +585,6 @@ in the Software without restriction...
 
 **Made with ❤️ by [lany50](https://github.com/lany50)**
 
-[⬆ 回到顶部](#智能文档识别助手-)
+[⬆ 回到顶部](#粉彩作文小助手-)
 
 </div>

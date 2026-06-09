@@ -249,29 +249,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initApp() {
-    // ========== 模式切换 ==========
-    const normalModeBtn = document.getElementById('normalModeBtn');
-    const essayModeBtn = document.getElementById('essayModeBtn');
-    const normalMode = document.getElementById('normalMode');
-    const essayMode = document.getElementById('essayMode');
-
-    normalModeBtn.addEventListener('click', () => {
-        normalModeBtn.classList.add('active');
-        essayModeBtn.classList.remove('active');
-        normalMode.classList.remove('hidden');
-        essayMode.classList.add('hidden');
-    });
-
-    essayModeBtn.addEventListener('click', () => {
-        essayModeBtn.classList.add('active');
-        normalModeBtn.classList.remove('active');
-        essayMode.classList.remove('hidden');
-        normalMode.classList.add('hidden');
-    });
-
-    // ========== 普通OCR模式 ==========
-    initNormalMode();
-
     // ========== 英语作文模式 ==========
     initEssayMode();
 
@@ -305,126 +282,6 @@ function initEssayTypeTabs() {
             continuationSection.classList.remove('hidden');
             applicationSection.classList.add('hidden');
         });
-    }
-}
-
-// ========================================
-// 普通OCR模式
-// ========================================
-function initNormalMode() {
-    const dropZone = document.getElementById('normalDropZone');
-    const fileInput = document.getElementById('normalFileInput');
-    const selectBtn = document.getElementById('normalSelectBtn');
-    const modelSelect = document.getElementById('normalModelSelect');
-    const progressDiv = document.getElementById('normalProgress');
-    const progressBar = document.getElementById('normalProgressBar');
-    const progressText = document.getElementById('normalProgressText');
-    const resultDiv = document.getElementById('normalResult');
-    const previewImg = document.getElementById('normalPreview');
-    const extractedText = document.getElementById('normalExtractedText');
-    const copyBtn = document.getElementById('normalCopyBtn');
-    const downloadBtn = document.getElementById('normalDownloadBtn');
-    const newBtn = document.getElementById('normalNewBtn');
-
-    // 点击上传
-    selectBtn.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('click', (e) => {
-        if (e.target === dropZone || e.target.closest('svg') || e.target.closest('h3') || e.target.closest('p')) {
-            fileInput.click();
-        }
-    });
-
-    // 文件选择
-    fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) handleNormalOCR(file);
-    });
-
-    // 拖拽上传
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('dragover');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        const file = e.dataTransfer.files[0];
-        if (file) handleNormalOCR(file);
-    });
-
-    // 复制按钮
-    copyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(extractedText.textContent).then(() => {
-            showToast('已复制到剪贴板', 'success');
-        });
-    });
-
-    // 下载按钮
-    downloadBtn.addEventListener('click', () => {
-        const text = extractedText.textContent;
-        downloadTextFile(text, `OCR识别结果_${new Date().toISOString().slice(0, 10)}.txt`);
-    });
-
-    // 新文档按钮
-    newBtn.addEventListener('click', () => {
-        resultDiv.classList.add('hidden');
-        fileInput.value = '';
-        extractedText.textContent = '';
-        previewImg.src = '';
-        progressBar.style.width = '0%';
-    });
-
-    // 处理OCR
-    async function handleNormalOCR(file) {
-        if (!validateOcrFile(file)) return;
-
-        try {
-            // 显示进度
-            resultDiv.classList.add('hidden');
-            progressDiv.classList.remove('hidden');
-
-            // 模拟进度
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 15;
-                if (progress > 90) progress = 90;
-                progressBar.style.width = `${progress}%`;
-
-                if (progress < 30) progressText.textContent = '准备中...';
-                else if (progress < 60) progressText.textContent = '连接AI...';
-                else progressText.textContent = '识别中...';
-            }, 200);
-
-
-
-            // 调用OCR
-            const model = modelSelect.value;
-            const result = await callOCR(file, model);
-
-            // 完成进度
-            clearInterval(progressInterval);
-            progressBar.style.width = '100%';
-            progressText.textContent = '识别完成！';
-
-            // 显示结果
-            setTimeout(() => {
-                progressDiv.classList.add('hidden');
-                renderNormalPreview(previewImg, file);
-                extractedText.textContent = result.text;
-                resultDiv.classList.remove('hidden');
-                showToast('识别成功', 'success');
-            }, 500);
-
-        } catch (error) {
-            console.error('OCR失败:', error);
-            progressDiv.classList.add('hidden');
-            showToast('识别失败: ' + error.message, 'error');
-        }
     }
 }
 
@@ -1602,11 +1459,6 @@ ${gradingResultContent.innerText}
 // API调用函数
 // ========================================
 
-// 普通OCR
-async function callOCR(file, model = 'gemini-3.5-flash') {
-    return callVisionOCR(file, model);
-}
-
 // 作文OCR
 async function callEssayOCR(file, model = 'gemini-3.5-flash') {
     return callVisionOCR(file, model);
@@ -1989,32 +1841,6 @@ function formatRoleOcrText(results, roleOptions) {
             : `识别失败：${result.error || '未知错误'}`;
         return `${title}\n${body}`;
     }).join('\n\n---\n\n');
-}
-
-function renderNormalPreview(previewImg, file) {
-    const host = previewImg.parentElement;
-    let placeholder = host.querySelector('.file-preview-placeholder');
-
-    if (isImageFile(file)) {
-        if (placeholder) placeholder.remove();
-        previewImg.style.display = '';
-        previewImg.src = URL.createObjectURL(file);
-        previewImg.alt = file.name;
-        return;
-    }
-
-    previewImg.removeAttribute('src');
-    previewImg.style.display = 'none';
-    if (!placeholder) {
-        placeholder = document.createElement('div');
-        placeholder.className = 'file-preview-placeholder';
-        host.appendChild(placeholder);
-    }
-    placeholder.innerHTML = `
-        <div class="file-preview-pdf large">PDF</div>
-        <div class="file-preview-name">${escapeHtml(file.name)}</div>
-        <div class="file-preview-size">${escapeHtml(formatFileSize(file.size))}</div>
-    `;
 }
 
 function validateImageFile(file, showError = true) {
