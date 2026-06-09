@@ -114,8 +114,10 @@ cd smart-doc-helper
 文本模型和 OCR 密钥都放在服务端环境变量中，不再写入浏览器端 `config.js`：
 
 ```bash
-API_BASE_URL=https://api.chatst.org
-API_KEY=your-openai-compatible-api-key
+API_BASE_URL=your-text-model-api-base-url
+API_KEY=your-text-model-api-key
+OCR_API_BASE_URL=https://api.chatst.org
+OCR_API_KEY=your-ocr-api-key
 OCR_MODEL=gemini-3.5-flash
 ```
 
@@ -165,8 +167,10 @@ php -S localhost:8000
    - `Site settings` → `Environment variables`
    - 添加以下变量：
      ```
-     API_BASE_URL = https://api.chatst.org
-     API_KEY = your-api-key-here
+     API_BASE_URL = your-text-model-api-base-url
+     API_KEY = your-text-model-api-key
+     OCR_API_BASE_URL = https://api.chatst.org
+     OCR_API_KEY = your-ocr-api-key
      OCR_MODEL = gemini-3.5-flash
      ```
 
@@ -242,8 +246,10 @@ netlify deploy --prod
 
 | 变量名 | 说明 | 示例 |
 |--------|------|------|
-| `API_BASE_URL` | OpenAI 兼容 API 基础地址 | `https://api.chatst.org` |
-| `API_KEY` | OCR/作文批改/写作思路模型密钥 | `sk-...` |
+| `API_BASE_URL` | 批改/写作思路模型 API 基础地址 | `https://api.example.com` |
+| `API_KEY` | 批改/写作思路模型密钥 | `sk-...` |
+| `OCR_API_BASE_URL` | OCR 视觉模型 API 基础地址（未配置时回退到 `API_BASE_URL`） | `https://api.chatst.org` |
+| `OCR_API_KEY` | OCR 视觉模型密钥（未配置时回退到 `API_KEY`） | `sk-...` |
 | `OCR_MODEL` | OCR 使用的视觉模型 | `gemini-3.5-flash` |
 
 ---

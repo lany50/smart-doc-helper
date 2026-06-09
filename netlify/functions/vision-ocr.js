@@ -13,9 +13,9 @@ exports.handler = async (event) => {
     }
 
     try {
-        const apiKey = process.env.API_KEY;
+        const apiKey = process.env.OCR_API_KEY || process.env.API_KEY;
         if (!apiKey) {
-            return jsonResponse(500, { error: '未配置 API_KEY' });
+            return jsonResponse(500, { error: '未配置 OCR_API_KEY 或 API_KEY' });
         }
 
         const fields = parseMultipartForm(event);
@@ -27,7 +27,8 @@ exports.handler = async (event) => {
         validateUploadedFile(file);
 
         const model = sanitizeModel(fields.values.model || process.env.OCR_MODEL || DEFAULT_OCR_MODEL);
-        const response = await fetch(buildChatCompletionsUrl(process.env.API_BASE_URL || DEFAULT_BASE_URL), {
+        const baseURL = process.env.OCR_API_BASE_URL || process.env.API_BASE_URL || DEFAULT_BASE_URL;
+        const response = await fetch(buildChatCompletionsUrl(baseURL), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
