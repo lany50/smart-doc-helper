@@ -607,12 +607,34 @@ h1, h2, h3, h4 {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    overflow: hidden;
+}
+
+#applicationSection > .grid > div,
+#continuationSection > .grid > div {
+    height: min(850px, calc(100vh - 220px));
+    min-height: 680px;
+    overflow: hidden;
+}
+
+#essayOcrResult,
+#continuationOcrResult {
+    overflow: hidden;
 }
 
 .ocr-edit-field {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow: hidden;
+}
+
+.ocr-split-grid > .ocr-edit-field:first-child {
+    flex: 0 0 auto;
+}
+
+.ocr-split-grid > .ocr-edit-field:nth-child(2) {
+    flex: 1 1 0;
 }
 
 .ocr-textarea {
@@ -624,8 +646,9 @@ h1, h2, h3, h4 {
     color: #3A3632;
     font-size: 14px;
     line-height: 1.65;
-    resize: vertical;
+    resize: none;
     outline: none;
+    overflow: auto;
 }
 
 .ocr-textarea:focus {
@@ -634,23 +657,34 @@ h1, h2, h3, h4 {
 }
 
 .ocr-topic-textarea {
-    min-height: 150px;
+    height: 120px;
+    min-height: 96px;
+    max-height: 150px;
+    flex: 0 0 auto;
 }
 
 .ocr-essay-textarea {
-    min-height: 340px;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
 }
 
 .continuation-topic-textarea {
-    min-height: 160px;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
 }
 
 .continuation-original-textarea {
-    min-height: 220px;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
 }
 
 .continuation-content-textarea {
-    min-height: 200px;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
 }
 
 .ocr-action-bar {
@@ -678,6 +712,9 @@ h1, h2, h3, h4 {
     padding: 10px 12px;
     color: #3A3632;
     font-size: 12px;
+    flex: 0 0 auto;
+    max-height: 220px;
+    overflow: auto;
 }
 
 .ocr-raw-details summary {
@@ -688,7 +725,8 @@ h1, h2, h3, h4 {
 
 .ocr-raw-textarea {
     width: 100%;
-    min-height: 180px;
+    height: 150px;
+    min-height: 120px;
     margin-top: 10px;
     padding: 10px;
     border: 1px solid rgba(244, 162, 97, 0.25);
@@ -697,7 +735,7 @@ h1, h2, h3, h4 {
     color: #3A3632;
     font-size: 12px;
     line-height: 1.6;
-    resize: vertical;
+    resize: none;
 }
 
 /* ========================================
@@ -1431,6 +1469,14 @@ h1, h2, h3, h4,
 }
 
 @media (max-width: 768px) {
+    #applicationSection > .grid > div,
+    #continuationSection > .grid > div {
+        height: auto;
+        min-height: 0;
+        max-height: none !important;
+        overflow: visible;
+    }
+
     .file-role-group {
         width: 100%;
     }

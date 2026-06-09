@@ -573,6 +573,7 @@ function initEssayMode() {
 
         try {
             // 隐藏上传区域，显示进度
+            dropZone.classList.add('hidden');
             imagePreviewList.classList.add('hidden');
             startOcrBtn.classList.add('hidden');
             progressDiv.classList.remove('hidden');
@@ -655,6 +656,7 @@ function initEssayMode() {
         } catch (error) {
             console.error('OCR失败:', error);
             progressDiv.classList.add('hidden');
+            dropZone.classList.remove('hidden');
             imagePreviewList.classList.remove('hidden');
             startOcrBtn.classList.remove('hidden');
             showToast('识别失败: ' + error.message, 'error');
@@ -683,6 +685,8 @@ function initEssayMode() {
         ocrTopicTextarea.value = '';
         ocrResultTextarea.value = '';
         rawOcrTextarea.value = '';
+        ocrResult.classList.add('hidden');
+        dropZone.classList.remove('hidden');
         wordCount.textContent = '字数: 0 词';
         wordHint.textContent = '建议: 80词左右';
         sendBtn.disabled = true;
@@ -1062,6 +1066,7 @@ function initContinuationMode() {
     const wordCount = document.getElementById('continuationWordCount');
     const wordHint = document.getElementById('continuationWordHint');
     const sendBtn = document.getElementById('sendToContinuationGradeBtn');
+    const clearOcrBtn = document.getElementById('clearContinuationOcrBtn');
 
     // 批改区
     const gradingTopic = document.getElementById('continuationGradingTopic');
@@ -1179,6 +1184,7 @@ function initContinuationMode() {
 
         try {
             // 隐藏上传区域，显示进度
+            dropZone.classList.add('hidden');
             imagePreviewList.classList.add('hidden');
             startOcrBtn.classList.add('hidden');
             progressDiv.classList.remove('hidden');
@@ -1261,10 +1267,22 @@ function initContinuationMode() {
         } catch (error) {
             console.error('OCR失败:', error);
             progressDiv.classList.add('hidden');
+            dropZone.classList.remove('hidden');
             imagePreviewList.classList.remove('hidden');
             startOcrBtn.classList.remove('hidden');
             showToast('识别失败: ' + error.message, 'error');
         }
+    });
+
+    clearOcrBtn.addEventListener('click', () => {
+        topicTextarea.value = '';
+        originalTextarea.value = '';
+        contentTextarea.value = '';
+        rawOcrTextarea.value = '';
+        ocrResult.classList.add('hidden');
+        dropZone.classList.remove('hidden');
+        updateWordCount('', wordCount, wordHint);
+        sendBtn.disabled = true;
     });
 
     // 字数统计
