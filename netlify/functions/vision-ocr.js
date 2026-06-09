@@ -2,6 +2,12 @@ const DEFAULT_BASE_URL = 'https://api.chatst.org';
 const DEFAULT_OCR_MODEL = 'gemini-3.5-flash';
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS = 6000;
+const ROLE_LABELS = {
+    topic: '题目',
+    essay: '作文',
+    original: '原文',
+    continuation: '续写'
+};
 
 exports.handler = async (event) => {
     if (event.httpMethod === 'OPTIONS') {
@@ -18,39 +24,30 @@ exports.handler = async (event) => {
             return jsonResponse(500, { error: '未配置 OCR_API_KEY 或 API_KEY' });
         }
 
+        const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
+        if (/application\/json/i.test(contentType)) {
+            return handleJsonRequest(event, apiKey);
+        }
+
         const fields = parseMultipartForm(event);
         const file = fields.files.find((part) => part.name === 'file' && part.fileName);
-        if (!file) {
-            throw httpError(400, '未找到上传文件');
-        }
+        if (!file) throw httpError(400, '未找到上传文件');
 
         validateUploadedFile(file);
 
         const model = sanitizeModel(fields.values.model || process.env.OCR_MODEL || DEFAULT_OCR_MODEL);
         const baseURL = process.env.OCR_API_BASE_URL || process.env.API_BASE_URL || DEFAULT_BASE_URL;
-        const response = await fetch(buildChatCompletionsUrl(baseURL), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model,
-                messages: [{
-                    role: 'user',
-                    content: buildOcrContent(file)
-                }],
-                max_tokens: MAX_OUTPUT_TOKENS,
-                temperature: 0
-            })
+        const payload = await callVisionModel({
+            apiKey,
+            baseURL,
+            model,
+            messages: [{
+                role: 'user',
+                content: buildOcrContent(file)
+            }],
+            maxTokens: MAX_OUTPUT_TOKENS,
+            temperature: 0
         });
-
-        const payload = await readJson(response);
-        if (!response.ok) {
-            return jsonResponse(response.status || 502, {
-                error: payload.error?.message || payload.message || 'Gemini OCR 调用失败'
-            });
-        }
 
         const text = payload.choices?.[0]?.message?.content || '';
         return jsonResponse(200, {
@@ -65,6 +62,40 @@ exports.handler = async (event) => {
         });
     }
 };
+
+async function handleJsonRequest(event, apiKey) {
+    const rawBody = event.isBase64Encoded
+        ? Buffer.from(event.body || '', 'base64').toString('utf8')
+        : event.body;
+    const body = parseJsonBody(rawBody);
+    if (body.action !== 'split_ocr_text') {
+        throw httpError(400, '不支持的 OCR JSON 操作');
+    }
+
+    const rawText = String(body.rawText || '').trim();
+    const roles = normalizeRoles(body.roles);
+    if (!rawText) throw httpError(400, 'rawText 不能为空');
+    if (roles.length === 0) throw httpError(400, 'roles 不能为空');
+
+    const model = sanitizeModel(body.model || process.env.OCR_MODEL || DEFAULT_OCR_MODEL);
+    const baseURL = process.env.OCR_API_BASE_URL || process.env.API_BASE_URL || DEFAULT_BASE_URL;
+    const payload = await callVisionModel({
+        apiKey,
+        baseURL,
+        model,
+        messages: [{
+            role: 'user',
+            content: buildSplitPrompt(rawText, roles)
+        }],
+        maxTokens: 2200,
+        temperature: 0
+    });
+
+    return jsonResponse(200, {
+        content: payload.choices?.[0]?.message?.content || '',
+        model: payload.model || model
+    });
+}
 
 function jsonResponse(statusCode, body) {
     return {
@@ -171,6 +202,42 @@ function validateUploadedFile(file) {
     }
 }
 
+function parseJsonBody(body) {
+    try {
+        return JSON.parse(body || '{}');
+    } catch {
+        throw httpError(400, '请求内容不是有效 JSON');
+    }
+}
+
+function normalizeRoles(roles) {
+    const values = Array.isArray(roles) ? roles : [roles].filter(Boolean);
+    const allowed = new Set(Object.keys(ROLE_LABELS));
+    return [...new Set(values.map(role => String(role || '').trim()).filter(role => allowed.has(role)))];
+}
+
+async function callVisionModel({ apiKey, baseURL, model, messages, maxTokens, temperature }) {
+    const response = await fetch(buildChatCompletionsUrl(baseURL), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model,
+            messages,
+            max_tokens: maxTokens,
+            temperature
+        })
+    });
+
+    const payload = await readJson(response);
+    if (!response.ok) {
+        throw httpError(response.status || 502, payload.error?.message || payload.message || 'Gemini OCR 调用失败');
+    }
+    return payload;
+}
+
 function buildOcrContent(file) {
     const prompt = [
         '你是一个严谨的 OCR 转写助手。',
@@ -202,6 +269,26 @@ function buildOcrContent(file) {
             }
         }
     ];
+}
+
+function buildSplitPrompt(rawText, roles) {
+    const schema = `{${roles.map(role => `"${role}":"..."`).join(',')}}`;
+    const roleText = roles.map(role => `${role}=${ROLE_LABELS[role]}`).join('，');
+
+    return `你是一个 OCR 文本分段助手。请只根据 OCR 原文，把文本拆进用户标记的字段。
+
+用户标记字段：${roleText}
+
+要求：
+1. 只输出 JSON，不要 Markdown，不要解释。
+2. JSON 必须是：${schema}
+3. 只在已标记字段中分配内容，不要新增字段。
+4. 不要改写、润色、纠错或翻译；只做分段和去除明显 OCR 分隔符。
+5. 如果某个字段无法判断，用空字符串。
+6. 不要丢失原文信息；不确定的正文内容放入最接近的正文类字段。
+
+OCR 原文：
+${rawText}`;
 }
 
 function buildChatCompletionsUrl(baseURL) {

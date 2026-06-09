@@ -1371,6 +1371,25 @@ h1, h2, h3, h4,
     font-size: 12px;
 }
 
+.file-role-shell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.file-role-help {
+    min-height: 28px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: #fff8de;
+    color: var(--classroom-muted);
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+}
+
 .file-role-group {
     display: inline-flex;
     flex-wrap: wrap;
@@ -1382,7 +1401,7 @@ h1, h2, h3, h4,
 }
 
 .file-role-btn {
-    min-height: 38px !important;
+    min-height: 48px !important;
     padding: 0 14px;
     border: 1px solid transparent;
     border-radius: 8px;
@@ -1398,8 +1417,18 @@ h1, h2, h3, h4,
     box-shadow: 0 3px 0 rgba(69, 173, 145, 0.24);
 }
 
+.file-role-check {
+    display: none;
+    margin-left: 6px;
+    font-weight: 900;
+}
+
+.file-role-btn.active .file-role-check {
+    display: inline;
+}
+
 .image-preview-item .remove-btn {
-    min-height: 38px;
+    min-height: 48px;
     border: 1px solid rgba(255, 171, 194, 0.58);
     border-radius: 8px;
     background: #fff5f8;
@@ -1477,6 +1506,7 @@ h1, h2, h3, h4,
         overflow: visible;
     }
 
+    .file-role-shell,
     .file-role-group {
         width: 100%;
     }

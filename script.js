@@ -232,6 +232,7 @@ const CONTINUATION_GUIDANCE_PROMPT = `你是一名精通中国高考英语读后
 // 全局变量
 let uploadedImages = []; // 存储上传文件及手动分区
 let ocrResults = []; // 存储OCR结果
+const OCR_SPLIT_MODEL = 'gemini-3.5-flash';
 const APPLICATION_OCR_ROLE_OPTIONS = [
     { value: 'topic', label: '题目' },
     { value: 'essay', label: '作文' }
@@ -528,7 +529,7 @@ function initEssayMode() {
         validFiles.forEach(file => {
             uploadedImages.push({
                 file,
-                role: uploadedImages.length === 0 ? 'topic' : 'essay'
+                roles: uploadedImages.length === 0 ? ['topic'] : ['essay']
             });
         });
 
@@ -550,7 +551,7 @@ function initEssayMode() {
             renderFilePreviewItem(previewItem, item, {
                 roleOptions: APPLICATION_OCR_ROLE_OPTIONS,
                 onRoleChange: (role) => {
-                    uploadedImages[index].role = role;
+                    uploadedImages[index].roles = toggleFileRole(uploadedImages[index].roles, role);
                     updateImagePreviewList();
                 }
             });
@@ -595,7 +596,7 @@ function initEssayMode() {
                     const result = await callEssayOCR(file, model);
                     ocrResults.push({
                         ok: true,
-                        role: item.role,
+                        roles: normalizeRoles(item.roles),
                         text: result.text,
                         fileName: result.fileName || file.name
                     });
@@ -603,7 +604,7 @@ function initEssayMode() {
                     console.warn('单个文件OCR失败:', file.name, error);
                     ocrResults.push({
                         ok: false,
-                        role: item.role,
+                        roles: normalizeRoles(item.roles),
                         text: '',
                         fileName: file.name,
                         error: error.message
@@ -618,12 +619,9 @@ function initEssayMode() {
                 throw new Error('所有文件都识别失败，请检查图片清晰度或稍后重试');
             }
 
-            progressText.textContent = '正在按标记整理题目和作文...';
+            progressText.textContent = '正在按多选标签整理题目和作文...';
 
-            const groupedText = combineOcrByRoles(ocrResults, {
-                topic: ['topic'],
-                essay: ['essay']
-            });
+            const groupedText = await organizeOcrByRoles(ocrResults, APPLICATION_OCR_ROLE_OPTIONS, OCR_SPLIT_MODEL);
             const mergedText = formatRoleOcrText(ocrResults, APPLICATION_OCR_ROLE_OPTIONS);
 
             setTimeout(() => {
@@ -1139,7 +1137,7 @@ function initContinuationMode() {
         validFiles.forEach(file => {
             continuationImages.push({
                 file,
-                role: continuationImages.length === 0 ? 'topic' : 'continuation'
+                roles: continuationImages.length === 0 ? ['topic', 'original'] : ['continuation']
             });
         });
 
@@ -1161,7 +1159,7 @@ function initContinuationMode() {
             renderFilePreviewItem(previewItem, item, {
                 roleOptions: CONTINUATION_OCR_ROLE_OPTIONS,
                 onRoleChange: (role) => {
-                    continuationImages[index].role = role;
+                    continuationImages[index].roles = toggleFileRole(continuationImages[index].roles, role);
                     updateImagePreviewList();
                 }
             });
@@ -1206,7 +1204,7 @@ function initContinuationMode() {
                     const result = await callEssayOCR(file, model);
                     ocrResults.push({
                         ok: true,
-                        role: item.role,
+                        roles: normalizeRoles(item.roles),
                         text: result.text,
                         fileName: result.fileName || file.name
                     });
@@ -1214,7 +1212,7 @@ function initContinuationMode() {
                     console.warn('单个文件OCR失败:', file.name, error);
                     ocrResults.push({
                         ok: false,
-                        role: item.role,
+                        roles: normalizeRoles(item.roles),
                         text: '',
                         fileName: file.name,
                         error: error.message
@@ -1229,12 +1227,8 @@ function initContinuationMode() {
                 throw new Error('所有文件都识别失败，请检查图片清晰度或稍后重试');
             }
 
-            progressText.textContent = '正在按标记整理题目、原文和续写...';
-            const groupedText = combineOcrByRoles(ocrResults, {
-                topic: ['topic'],
-                original: ['original'],
-                continuation: ['continuation']
-            });
+            progressText.textContent = '正在按多选标签整理题目、原文和续写...';
+            const groupedText = await organizeOcrByRoles(ocrResults, CONTINUATION_OCR_ROLE_OPTIONS, OCR_SPLIT_MODEL);
             const mergedText = formatRoleOcrText(ocrResults, CONTINUATION_OCR_ROLE_OPTIONS);
 
             setTimeout(() => {
@@ -1850,7 +1844,7 @@ function validateOcrFile(file, showError = true) {
 
 function renderFilePreviewItem(previewItem, fileItem, options = {}) {
     const file = fileItem.file || fileItem;
-    const role = fileItem.role;
+    const roles = normalizeRoles(fileItem.roles || fileItem.role);
     const roleOptions = options.roleOptions || [];
     const safeName = escapeHtml(file.name);
     const safeSize = escapeHtml(formatFileSize(file.size));
@@ -1858,16 +1852,20 @@ function renderFilePreviewItem(previewItem, fileItem, options = {}) {
         ? `<img src="${URL.createObjectURL(file)}" alt="预览">`
         : `<div class="file-preview-pdf">PDF</div>`;
     const roleControls = roleOptions.length > 0
-        ? `<div class="file-role-group" role="group" aria-label="标记文件类型">
+        ? `<div class="file-role-shell">
+            <div class="file-role-help">可多选</div>
+            <div class="file-role-group" role="group" aria-label="标记文件包含的内容">
             ${roleOptions.map(option => `
                 <button
-                    class="file-role-btn ${option.value === role ? 'active' : ''}"
+                    class="file-role-btn ${roles.includes(option.value) ? 'active' : ''}"
                     type="button"
                     data-role="${escapeHtml(option.value)}"
-                    aria-pressed="${option.value === role ? 'true' : 'false'}">
+                    aria-pressed="${roles.includes(option.value) ? 'true' : 'false'}">
                     ${escapeHtml(option.label)}
+                    <span class="file-role-check" aria-hidden="true">✓</span>
                 </button>
             `).join('')}
+            </div>
         </div>`
         : '';
 
@@ -1892,11 +1890,88 @@ function getRoleLabel(role, roleOptions) {
     return roleOptions.find(option => option.value === role)?.label || role || '未标记';
 }
 
+function normalizeRoles(roles) {
+    if (Array.isArray(roles)) return roles.filter(Boolean);
+    return roles ? [roles] : [];
+}
+
+function toggleFileRole(roles, role) {
+    const current = normalizeRoles(roles);
+    if (current.includes(role)) {
+        return current.length === 1 ? current : current.filter(item => item !== role);
+    }
+    return [...current, role];
+}
+
+async function organizeOcrByRoles(results, roleOptions, model) {
+    const grouped = Object.fromEntries(roleOptions.map(option => [option.value, []]));
+
+    for (const result of results) {
+        const rawText = String(result.text || '').trim();
+        if (!result.ok || !rawText) continue;
+
+        const roles = normalizeRoles(result.roles || result.role);
+        if (roles.length === 0) continue;
+
+        if (roles.length === 1) {
+            grouped[roles[0]]?.push(rawText);
+            continue;
+        }
+
+        try {
+            const split = await splitTaggedOcrText(rawText, roles, roleOptions, model);
+            let hasSegment = false;
+            roles.forEach(role => {
+                const segment = typeof split[role] === 'string' ? split[role].trim() : '';
+                if (segment) {
+                    grouped[role]?.push(segment);
+                    hasSegment = true;
+                }
+            });
+
+            if (!hasSegment) {
+                grouped[getFallbackRole(roles)]?.push(rawText);
+            }
+        } catch (error) {
+            console.warn('多标签OCR分段失败:', result.fileName, error);
+            grouped[getFallbackRole(roles)]?.push(rawText);
+        }
+    }
+
+    return Object.fromEntries(Object.entries(grouped).map(([role, chunks]) => [role, chunks.join('\n\n')]));
+}
+
+async function splitTaggedOcrText(rawText, roles, roleOptions, model) {
+    const response = await fetch(OCR_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: 'split_ocr_text',
+            rawText,
+            roles,
+            model
+        })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+    }
+
+    return parseJsonObject(data.content || '');
+}
+
+function getFallbackRole(roles) {
+    return ['essay', 'continuation', 'original', 'topic'].find(role => roles.includes(role)) || roles[0];
+}
+
 function combineOcrByRoles(results, roleMap) {
     const grouped = {};
     Object.entries(roleMap).forEach(([target, roles]) => {
         grouped[target] = results
-            .filter(result => result.ok && roles.includes(result.role))
+            .filter(result => result.ok && normalizeRoles(result.roles || result.role).some(role => roles.includes(role)))
             .map(result => result.text)
             .filter(Boolean)
             .join('\n\n');
@@ -1906,7 +1981,8 @@ function combineOcrByRoles(results, roleMap) {
 
 function formatRoleOcrText(results, roleOptions) {
     return results.map((result, index) => {
-        const label = getRoleLabel(result.role, roleOptions);
+        const roles = normalizeRoles(result.roles || result.role);
+        const label = roles.map(role => getRoleLabel(role, roleOptions)).join(' + ') || '未标记';
         const title = `【${index + 1}. ${label} - ${result.fileName || '未命名文件'}】`;
         const body = result.ok
             ? (result.text || '（未识别到文字）')
