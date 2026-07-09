@@ -682,9 +682,9 @@ function initEssayMode() {
 
             // 根据模型估算时间
             let estimatedTime = '10-15 秒';
-            if (model === 'tencent/hy3:free') {
+            if (model === 'deepseek-v4-flash') {
                 estimatedTime = '5-10 秒';
-            } else if (model === 'mimo-v2.5') {
+            } else if (model === 'tencent/hy3:free') {
                 estimatedTime = '15-20 秒';
             }
             gradingTimeEst.textContent = `预计需要 ${estimatedTime}`;
@@ -1486,7 +1486,7 @@ async function callVisionOCR(file, model = 'gemini-3.5-flash') {
     };
 }
 
-async function splitApplicationOcrText(rawText, model = 'tencent/hy3:free') {
+async function splitApplicationOcrText(rawText, model = 'deepseek-v4-flash') {
     const prompt = `你是一个高考英语作文 OCR 文本整理助手。请只根据 OCR 原文，把内容拆成题目要求和学生作文。
 
 要求：
@@ -1507,7 +1507,7 @@ ${rawText}`;
     };
 }
 
-async function splitContinuationOcrText(rawText, model = 'tencent/hy3:free') {
+async function splitContinuationOcrText(rawText, model = 'deepseek-v4-flash') {
     const prompt = `你是一个高考英语读后续写 OCR 文本整理助手。请只根据 OCR 原文，把内容拆成题目要求、原文内容和学生续写。
 
 要求：

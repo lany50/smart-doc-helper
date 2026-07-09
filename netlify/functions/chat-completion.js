@@ -1,5 +1,5 @@
 const DEFAULT_BASE_URL = 'https://api.chatst.org';
-const ALLOWED_MODELS = new Set(['tencent/hy3:free', 'mimo-v2.5', 'gemini-3.5-flash']);
+const ALLOWED_MODELS = new Set(['deepseek-v4-flash', 'tencent/hy3:free', 'gemini-3.5-flash']);
 const MAX_TOKENS_LIMIT = 6000;
 
 exports.handler = async (event) => {
