@@ -1,5 +1,5 @@
 const DEFAULT_BASE_URL = 'https://api.chatst.org';
-const ALLOWED_MODELS = new Set(['deepseek-v4-flash', 'mimo-v2.5', 'gemini-3.5-flash']);
+const ALLOWED_MODELS = new Set(['tencent/hy3:free', 'mimo-v2.5', 'gemini-3.5-flash']);
 const MAX_TOKENS_LIMIT = 6000;
 
 exports.handler = async (event) => {
@@ -12,7 +12,7 @@ exports.handler = async (event) => {
     }
 
     try {
-        const apiKey = process.env.API_KEY;
+        const apiKey = process.env.API_KEY || process.env.OCR_API_KEY;
         if (!apiKey) {
             return jsonResponse(500, { error: '未配置 API_KEY' });
         }
@@ -20,7 +20,7 @@ exports.handler = async (event) => {
         const body = parseBody(event.body);
         validateCompletionRequest(body);
 
-        const completionsUrl = buildChatCompletionsUrl(process.env.API_BASE_URL || DEFAULT_BASE_URL);
+        const completionsUrl = buildChatCompletionsUrl(process.env.API_BASE_URL || process.env.OCR_API_BASE_URL || DEFAULT_BASE_URL);
         const maxTokens = normalizeMaxTokens(body.max_tokens);
         const upstreamResponse = await fetch(completionsUrl, {
             method: 'POST',
