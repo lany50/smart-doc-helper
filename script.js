@@ -1918,6 +1918,7 @@ function showToast(message, type = 'success') {
 // 学生学习闭环
 // ========================================
 const STUDENT_HISTORY_KEY = 'smart-doc-helper:learning-history:v1';
+const STUDENT_THEME_KEY = 'smart-doc-helper:theme';
 const STUDENT_HISTORY_MAX_WORKS = 30;
 const STUDENT_HISTORY_MAX_VERSIONS = 10;
 const STUDENT_HISTORY_MAX_BYTES = 3.5 * 1024 * 1024;
@@ -1926,6 +1927,7 @@ let activeStudentType = 'application';
 let activeCropEditor = null;
 
 function initStudentExperience() {
+    initThemeToggle();
     initStudentTabs();
     initStudentOnboarding();
     initPhotoEditor();
@@ -1954,6 +1956,23 @@ function initStudentExperience() {
         guidanceResult: 'continuationGuidanceResult', guidanceContent: 'continuationGuidanceContent', score: { total: 'continuationTotalScore', stars: 'continuationScoreStars', content: 'continuationContentScore', language: 'continuationLanguageScore', structure: 'continuationStructureScore', norm: 'continuationNormScore' },
         copyResult: 'copyContinuationResultBtn', downloadResult: 'downloadContinuationResultBtn', newWork: 'newContinuationGradingBtn', copyGuidance: 'copyContinuationGuidanceBtn', downloadGuidance: 'downloadContinuationGuidanceBtn', backFromGuidance: 'newContinuationGuidanceBtn'
     });
+}
+
+function initThemeToggle() {
+    const button = getById('themeToggleBtn');
+    const savedTheme = (() => {
+        try { return localStorage.getItem(STUDENT_THEME_KEY); } catch { return null; }
+    })();
+    const applyTheme = theme => {
+        const isNight = theme === 'night';
+        document.body.classList.toggle('night-mode', isNight);
+        button.setAttribute('aria-pressed', String(isNight));
+        button.textContent = isNight ? '☀️ 日间模式' : '🌙 夜间模式';
+        button.title = isNight ? '切换到日间模式' : '切换到夜间模式';
+        try { localStorage.setItem(STUDENT_THEME_KEY, theme); } catch { /* 本机隐私模式下仍可临时切换 */ }
+    };
+    applyTheme(savedTheme === 'night' ? 'night' : 'light');
+    button.addEventListener('click', () => applyTheme(document.body.classList.contains('night-mode') ? 'light' : 'night'));
 }
 
 function getById(id) { return document.getElementById(id); }

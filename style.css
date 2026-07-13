@@ -1535,6 +1535,7 @@ input:focus-visible {
 
 /* 学生学习闭环 */
 .student-history-toggle,
+.student-theme-toggle,
 .student-input-choice,
 .student-file-tools button,
 .student-role-buttons button,
@@ -1548,7 +1549,8 @@ input:focus-visible {
     cursor: pointer;
 }
 
-.student-history-toggle { padding: 9px 13px; font-size: 14px; }
+.student-header-actions { display: flex; align-items: center; gap: 9px; }
+.student-history-toggle, .student-theme-toggle { padding: 9px 13px; font-size: 14px; }
 .student-onboarding { max-width: 900px; margin: 0 auto 28px; padding: 18px; border: 2px solid rgba(140, 200, 255, .38); border-radius: 18px; background: rgba(255,255,255,.78); box-shadow: 0 5px 0 rgba(140, 200, 255, .11); }
 .student-onboarding-copy { display: flex; gap: 10px; align-items: baseline; color: var(--classroom-ink); }
 .student-onboarding-copy span { color: var(--classroom-muted); font-size: 14px; }
@@ -1610,7 +1612,8 @@ input:focus-visible {
 .photo-editor-actions button:last-child { background: #387eae; color: #fff; border-color: #387eae; }
 
 @media (max-width: 768px) {
-    .student-history-toggle { padding: 8px; font-size: 12px; }
+    .student-header-actions { gap: 5px; }
+    .student-history-toggle, .student-theme-toggle { padding: 8px; font-size: 12px; }
     .student-onboarding-copy { display: grid; gap: 3px; }
     .student-input-actions { display: grid; grid-template-columns: 1fr 1fr; }
     .student-input-choice { padding: 9px 7px; font-size: 12px; }
@@ -1620,3 +1623,58 @@ input:focus-visible {
     .student-role-buttons button, .student-file-tools button { flex: 1; }
     .photo-crop-controls { grid-template-columns: 1fr; }
 }
+
+/* 夜间模式：默认仍为日间，学生可按需切换 */
+body.ui-page.night-mode {
+    --classroom-ink: #e8f1fb;
+    --classroom-muted: #a9bacb;
+    --classroom-surface: #1d2a38;
+    --classroom-surface-strong: #26394b;
+    --classroom-line: rgba(132, 187, 230, .18);
+    --classroom-border: rgba(132, 187, 230, .34);
+    --classroom-shadow: 0 14px 30px rgba(0, 0, 0, .34);
+    color: var(--classroom-ink);
+    background:
+        linear-gradient(90deg, rgba(118, 177, 222, .06) 1px, transparent 1px),
+        linear-gradient(rgba(117, 209, 180, .05) 1px, transparent 1px),
+        linear-gradient(135deg, #111b27 0%, #152536 50%, #1c2136 100%);
+    background-size: 36px 36px, 36px 36px, auto;
+}
+
+.night-mode .classroom-backdrop {
+    opacity: .32;
+    background:
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(132, 187, 230, .12) 32px),
+        repeating-linear-gradient(90deg, transparent 0 95px, rgba(220, 151, 181, .08) 96px);
+}
+
+.night-mode #legacyApp header nav { background: rgba(29, 42, 56, .88); border-color: rgba(255, 229, 143, .28); }
+.night-mode #legacyApp [class*="bg-[#F8F4EC]"],
+.night-mode #legacyApp [class*="bg-[#FFF9F0]"] { background: #26394b !important; }
+.night-mode #legacyApp textarea,
+.night-mode #legacyApp select { background: #172331 !important; color: #e8f1fb !important; border-color: rgba(132, 187, 230, .38) !important; }
+.night-mode #legacyApp textarea::placeholder { color: #90a6bb; }
+.night-mode #legacyApp .ocr-status-note,
+.night-mode #legacyApp .ocr-raw-details { background: #182635; color: #a9bacb; }
+.night-mode .student-history-toggle,
+.night-mode .student-theme-toggle,
+.night-mode .student-input-choice:not(.is-active),
+.night-mode .student-file-tools button,
+.night-mode .student-role-buttons button,
+.night-mode .history-version-row button,
+.night-mode .photo-editor-actions button { background: #26394b; color: #e8f1fb; border-color: rgba(132, 187, 230, .4); }
+.night-mode .student-onboarding,
+.night-mode .student-file-item,
+.night-mode .history-work-card,
+.night-mode .photo-editor-dialog { background: #1d2a38; border-color: rgba(132, 187, 230, .35); color: #e8f1fb; }
+.night-mode .student-file-preview { background: #172331; }
+.night-mode .student-file-details span,
+.night-mode .history-work-card > p,
+.night-mode .history-empty,
+.night-mode .photo-editor-dialog > p { color: #a9bacb; }
+.night-mode .learning-history-drawer { background: #14202d; color: #e8f1fb; }
+.night-mode .history-drawer-header button { color: #e8f1fb; }
+.night-mode .history-compare-panel { background: #24233d; border-color: rgba(174, 145, 245, .4); }
+.night-mode .history-compare-panel pre { background: #172331; color: #e8f1fb; }
+.night-mode .photo-editor-canvas { background: #172331; }
+.night-mode .history-clear-btn { background: #392631; color: #ffc5c5; }
