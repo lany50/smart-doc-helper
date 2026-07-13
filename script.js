@@ -1960,19 +1960,31 @@ function initStudentExperience() {
 
 function initThemeToggle() {
     const button = getById('themeToggleBtn');
-    const savedTheme = (() => {
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const readSavedTheme = () => {
         try { return localStorage.getItem(STUDENT_THEME_KEY); } catch { return null; }
-    })();
-    const applyTheme = theme => {
+    };
+    const applyTheme = (theme, persist = false) => {
         const isNight = theme === 'night';
         document.body.classList.toggle('night-mode', isNight);
         button.setAttribute('aria-pressed', String(isNight));
         button.textContent = isNight ? '☀️ 日间模式' : '🌙 夜间模式';
         button.title = isNight ? '切换到日间模式' : '切换到夜间模式';
-        try { localStorage.setItem(STUDENT_THEME_KEY, theme); } catch { /* 本机隐私模式下仍可临时切换 */ }
+        // 只有学生手动切换才持久化；未手动设置时始终跟随系统
+        if (persist) {
+            try { localStorage.setItem(STUDENT_THEME_KEY, theme); } catch { /* 本机隐私模式下仍可临时切换 */ }
+        }
     };
-    applyTheme(savedTheme === 'night' ? 'night' : 'light');
-    button.addEventListener('click', () => applyTheme(document.body.classList.contains('night-mode') ? 'light' : 'night'));
+    const savedTheme = readSavedTheme();
+    if (savedTheme) {
+        applyTheme(savedTheme === 'night' ? 'night' : 'light');
+    } else {
+        applyTheme(systemDark.matches ? 'night' : 'light');
+    }
+    systemDark.addEventListener('change', event => {
+        if (!readSavedTheme()) applyTheme(event.matches ? 'night' : 'light');
+    });
+    button.addEventListener('click', () => applyTheme(document.body.classList.contains('night-mode') ? 'light' : 'night', true));
 }
 
 function getById(id) { return document.getElementById(id); }
