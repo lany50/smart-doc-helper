@@ -33,6 +33,9 @@
                     </div>
                     <h1 class="text-2xl font-serif text-[#2D2A26]">粉彩作文小助手</h1>
                 </div>
+                <button id="historyToggleBtn" class="student-history-toggle" type="button" aria-controls="learningHistoryDrawer" aria-expanded="false">
+                    📚 学习记录
+                </button>
             </div>
 
         </nav>
@@ -44,7 +47,23 @@
         <section id="essayMode" class="mode-content max-w-7xl mx-auto">
             <div class="text-center mb-8">
                 <h2 class="text-3xl font-serif text-[#2D2A26] mb-2">英语作文批改</h2>
-                <p class="text-[#3A3632] opacity-70">先标记题目和作文，再识别批改</p>
+                <p class="text-[#3A3632] opacity-70">拍照识别、获得反馈，再完成一次有目标的改稿</p>
+            </div>
+
+            <div class="student-onboarding" aria-label="使用指引">
+                <div class="student-onboarding-copy">
+                    <strong>从这里开始</strong>
+                    <span>选择输入方式，确认文字，再获得你的改稿任务。</span>
+                </div>
+                <div class="student-input-actions" role="group" aria-label="选择输入方式">
+                    <button type="button" class="student-input-choice is-active" data-input-mode="upload">📸 上传作业照片</button>
+                    <button type="button" class="student-input-choice" data-input-mode="paste">⌨️ 直接粘贴作文</button>
+                </div>
+                <ol class="student-steps">
+                    <li><b>1</b> 选择题型和输入方式</li>
+                    <li><b>2</b> 检查题目与作文内容</li>
+                    <li><b>3</b> 完成改稿任务并比较进步</li>
+                </ol>
             </div>
 
             <!-- 作文类型选择 -->
@@ -219,7 +238,7 @@
                             <div class="grid grid-cols-2 gap-4 mb-4 flex-shrink-0">
                                 <!-- 总分 -->
                                 <div class="bg-gradient-to-br from-[#E07B39] to-[#F4A261] rounded-xl p-4 text-white">
-                                    <div class="text-sm opacity-90 mb-1">总分评定</div>
+                                    <div class="text-sm opacity-90 mb-1">AI 预估分</div>
                                     <div class="text-3xl font-bold" id="totalScore">--/15</div>
                                     <div class="flex gap-1 mt-2">
                                         <span id="scoreStars">⭐⭐⭐⭐⭐</span>
@@ -460,7 +479,7 @@
                             <div class="grid grid-cols-2 gap-4 mb-4 flex-shrink-0">
                                 <!-- 总分 -->
                                 <div class="bg-gradient-to-br from-[#E07B39] to-[#F4A261] rounded-xl p-4 text-white">
-                                    <div class="text-sm opacity-90 mb-1">总分评定</div>
+                                    <div class="text-sm opacity-90 mb-1">AI 预估分</div>
                                     <div class="text-3xl font-bold" id="continuationTotalScore">--/25</div>
                                     <div class="flex gap-1 mt-2">
                                         <span id="continuationScoreStars">⭐⭐⭐⭐⭐</span>
@@ -496,6 +515,18 @@
                                 <!-- 详细批改卡片将动态插入这里 -->
                             </div>
                         </div>
+
+                        <div id="continuationGuidanceResult" class="hidden flex-1 flex flex-col min-h-0">
+                            <div class="mb-4 flex justify-between items-center flex-shrink-0">
+                                <h4 class="text-md font-medium text-[#2D2A26]">💡 读后续写思路指导</h4>
+                                <div class="flex gap-2">
+                                    <button id="copyContinuationGuidanceBtn" class="px-3 py-1.5 bg-[#8B5CF6] text-white rounded-lg text-xs hover:bg-[#7C3AED] transition-all" type="button">📋 复制</button>
+                                    <button id="downloadContinuationGuidanceBtn" class="px-3 py-1.5 bg-white text-[#8B5CF6] border border-[#8B5CF6] rounded-lg text-xs hover:bg-purple-50 transition-all" type="button">📥 下载</button>
+                                    <button id="newContinuationGuidanceBtn" class="px-3 py-1.5 bg-[#F8F4EC] text-[#3A3632] rounded-lg text-xs hover:bg-[#F4A261]/20 transition-all" type="button">🔄 返回编辑</button>
+                                </div>
+                            </div>
+                            <div id="continuationGuidanceContent" class="flex-1 bg-gradient-to-br from-purple-50 to-white rounded-xl p-6 overflow-y-auto min-h-0 border-2 border-purple-200"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -511,7 +542,43 @@
 
     </div>
 
+    <aside id="learningHistoryDrawer" class="learning-history-drawer" aria-hidden="true" aria-label="学习记录">
+        <div class="history-drawer-header">
+            <div><h2>学习记录</h2><p>记录保存在这台设备的浏览器中</p></div>
+            <button id="historyCloseBtn" type="button" aria-label="关闭学习记录">×</button>
+        </div>
+        <div id="historyComparePanel" class="history-compare-panel hidden"></div>
+        <div id="learningHistoryList" class="learning-history-list"></div>
+        <button id="clearLearningHistoryBtn" class="history-clear-btn" type="button">清空全部记录</button>
+    </aside>
+    <div id="historyBackdrop" class="history-backdrop hidden"></div>
+
+    <div id="photoEditorModal" class="photo-editor-modal hidden" role="dialog" aria-modal="true" aria-labelledby="photoEditorTitle">
+        <div class="photo-editor-dialog">
+            <div class="photo-editor-header"><h2 id="photoEditorTitle">裁剪照片</h2><button id="photoEditorCloseBtn" type="button" aria-label="关闭">×</button></div>
+            <p>拖动滑块选择保留区域；裁剪只影响本次识别。</p>
+            <canvas id="photoEditorCanvas" class="photo-editor-canvas"></canvas>
+            <div class="photo-crop-controls">
+                <label>左边距 <input id="cropLeftInput" type="range" min="0" max="80" value="0"></label>
+                <label>上边距 <input id="cropTopInput" type="range" min="0" max="80" value="0"></label>
+                <label>宽度 <input id="cropWidthInput" type="range" min="20" max="100" value="100"></label>
+                <label>高度 <input id="cropHeightInput" type="range" min="20" max="100" value="100"></label>
+            </div>
+            <div class="photo-editor-actions"><button id="photoEditorResetBtn" type="button">重置</button><button id="photoEditorApplyBtn" type="button">应用裁剪</button></div>
+        </div>
+    </div>
+
     <!-- JavaScript -->
+
+<script>
+// Netlify站内端点注入
+window.NETLIFY_CONFIG = {
+    textModelEndpoint: '/.netlify/functions/chat-completion',
+    ocrEndpoint: '/.netlify/functions/vision-ocr'
+};
+console.log('✅ 站内端点已加载');
+</script>
+
     <script src="script.js"></script>
 </body>
 </html>

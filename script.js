@@ -38,7 +38,11 @@ const APPLICATION_GRADING_PROMPT = `你是一名精通中国高考英语应用�
   "problems": ["问题1", "问题2"],
   "suggestions": "改进建议文字...",
   "modelAnswer": "范文内容（约80词）...",
-  "tips": "提分秘诀文字..."
+  "tips": "提分秘诀文字...",
+  "rubricEvidence": ["评分依据1", "评分依据2"],
+  "missingRequirements": ["缺失要点；没有则写‘无’"],
+  "confidence": "高/中/低，并用一句话说明原因",
+  "revisionTasks": [{"original":"需要改的原句或内容","issue":"具体问题","suggestion":"建议如何改","reason":"为什么这样改","practice":"本次练习目标"}]
 }
 
 高考英语应用文评分标准（满分15分，按五个档次评分）：
@@ -88,7 +92,9 @@ const APPLICATION_GRADING_PROMPT = `你是一名精通中国高考英语应用�
 2. highlights和problems数组至少各包含2-3条
 3. modelAnswer必须是完整的范文，约80词，展现第五档水平
 4. contentReview中要明确指出作文属于哪个档次，并说明理由
-5. 请确保输出是有效的JSON格式
+5. rubricEvidence 至少列出2条能在学生作文中找到的具体依据；missingRequirements 没有时返回 ["无"]
+6. revisionTasks 返回 2-3 项，优先选择最影响得分的问题；每项字段都必须填写
+7. 请确保输出是有效的JSON格式
 
 请开始批改：`;
 
@@ -151,7 +157,11 @@ const CONTINUATION_GRADING_PROMPT = `你是一名精通中国高考英语读后�
   "problems": ["问题1", "问题2"],
   "suggestions": "改进建议文字...",
   "modelAnswer": "范文内容（约130词）...",
-  "tips": "提分秘诀文字..."
+  "tips": "提分秘诀文字...",
+  "rubricEvidence": ["评分依据1", "评分依据2"],
+  "missingRequirements": ["缺失要点；没有则写‘无’"],
+  "confidence": "高/中/低，并用一句话说明原因",
+  "revisionTasks": [{"original":"需要改的原句或内容","issue":"具体问题","suggestion":"建议如何改","reason":"为什么这样改","practice":"本次练习目标"}]
 }
 
 评分标准（满分25分）：
@@ -190,17 +200,22 @@ const CONTINUATION_GRADING_PROMPT = `你是一名精通中国高考英语读后�
 2. 所有文字内容使用简体中文
 3. highlights和problems数组至少各包含2-3条
 4. modelAnswer必须是完整的范文，约130词
-5. 请确保输出是有效的JSON格式
+5. rubricEvidence 至少列出2条能在学生续写或原文中找到的具体依据；missingRequirements 没有时返回 ["无"]
+6. revisionTasks 返回 2-3 项，优先选择最影响得分的问题；每项字段都必须填写
+7. 请确保输出是有效的JSON格式
 
 请开始批改：`;
 
 // 读后续写思路指导提示词
 const CONTINUATION_GUIDANCE_PROMPT = `你是一名精通中国高考英语读后续写写作指导的老师。
 
-学生向你提供了以下读后续写题目：
+学生向你提供了以下读后续写材料：
 
 【题目要求】
 {TOPIC}
+
+【原文内容】
+{ORIGINAL}
 
 请为学生提供详细的写作思路指导，包括：
 
@@ -249,14 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initApp() {
-    // ========== 英语作文模式 ==========
-    initEssayMode();
-
-    // ========== 读后续写模式 ==========
-    initContinuationMode();
-
-    // ========== 作文类型切换 ==========
-    initEssayTypeTabs();
+    initStudentExperience();
 }
 
 // ========================================
@@ -1238,7 +1246,7 @@ function initContinuationMode() {
                 }
             }, 400);
 
-            const result = await getContinuationGuidance(topic, model);
+            const result = await getContinuationGuidance(topic, gradingOriginal.value, model);
 
             clearInterval(progressInterval);
             gradingProgressBar.style.width = '100%';
@@ -1635,8 +1643,10 @@ async function gradeContinuation(topic, original, content, model) {
 }
 
 // 获取读后续写思路指导
-async function getContinuationGuidance(topic, model) {
-    const prompt = CONTINUATION_GUIDANCE_PROMPT.replace('{TOPIC}', topic);
+async function getContinuationGuidance(topic, original, model) {
+    const prompt = CONTINUATION_GUIDANCE_PROMPT
+        .replace('{TOPIC}', topic)
+        .replace('{ORIGINAL}', original);
 
     return callTextCompletion({
         model,
@@ -1903,5 +1913,518 @@ function showToast(message, type = 'success') {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+
+// ========================================
+// 学生学习闭环
+// ========================================
+const STUDENT_HISTORY_KEY = 'smart-doc-helper:learning-history:v1';
+const STUDENT_HISTORY_MAX_WORKS = 30;
+const STUDENT_HISTORY_MAX_VERSIONS = 10;
+const STUDENT_HISTORY_MAX_BYTES = 3.5 * 1024 * 1024;
+const studentComposers = {};
+let activeStudentType = 'application';
+let activeCropEditor = null;
+
+function initStudentExperience() {
+    initStudentTabs();
+    initStudentOnboarding();
+    initPhotoEditor();
+    initStudentHistory();
+
+    studentComposers.application = initStudentComposer({
+        type: 'application',
+        maxScore: 15,
+        roles: APPLICATION_OCR_ROLE_OPTIONS,
+        fileInput: 'essayFileInput', selectButton: 'essaySelectBtn', dropZone: 'essayDropZone', previewList: 'imagePreviewList', startOcr: 'startOcrBtn',
+        ocrModel: 'essayOcrModel', progress: 'essayProgress', progressText: 'essayProgressText', progressCount: 'essayProgressCount', progressBar: 'essayProgressBar', ocrResult: 'essayOcrResult',
+        ocrFields: { topic: 'essayOcrTopic', content: 'essayContent', raw: 'essayRawOcrText' }, wordCount: 'essayWordCount', wordHint: 'essayWordHint', syncButton: 'sendToGradeBtn', clearOcr: 'clearEssayBtn',
+        gradeFields: { topic: 'gradingTopic', content: 'gradingEssay' }, gradeWordCount: 'gradingWordCount', gradeWordStatus: 'gradingWordStatus', gradeModel: 'gradingModel', guideButton: 'getGuidanceBtn', gradeButton: 'startGradingBtn', gradeInput: 'gradingInput', gradeProgress: 'gradingProgress', gradeProgressText: 'gradingProgressText', gradeProgressTime: 'gradingTimeEst', gradeProgressBar: 'gradingProgressBar', gradeResult: 'gradingResult', gradeResultContent: 'gradingResultContent',
+        guidanceResult: 'guidanceResult', guidanceContent: 'guidanceContent', score: { total: 'totalScore', stars: 'scoreStars', content: 'contentScore', language: 'languageScore', structure: 'structureScore' },
+        copyResult: 'copyResultBtn', downloadResult: 'downloadResultBtn', newWork: 'newGradingBtn', copyGuidance: 'copyGuidanceBtn', downloadGuidance: 'downloadGuidanceBtn', backFromGuidance: 'newGuidanceBtn'
+    });
+
+    studentComposers.continuation = initStudentComposer({
+        type: 'continuation',
+        maxScore: 25,
+        roles: CONTINUATION_OCR_ROLE_OPTIONS,
+        fileInput: 'continuationFileInput', selectButton: 'continuationSelectBtn', dropZone: 'continuationDropZone', previewList: 'continuationImagePreviewList', startOcr: 'startContinuationOcrBtn',
+        ocrModel: 'continuationOcrModel', progress: 'continuationProgress', progressText: 'continuationProgressText', progressCount: 'continuationProgressCount', progressBar: 'continuationProgressBar', ocrResult: 'continuationOcrResult',
+        ocrFields: { topic: 'continuationTopic', original: 'continuationOriginal', content: 'continuationContent', raw: 'continuationRawOcrText' }, wordCount: 'continuationWordCount', wordHint: 'continuationWordHint', syncButton: 'sendToContinuationGradeBtn', clearOcr: 'clearContinuationOcrBtn',
+        gradeFields: { topic: 'continuationGradingTopic', original: 'continuationGradingOriginal', content: 'continuationGradingContent' }, gradeWordCount: 'continuationGradingWordCount', gradeWordStatus: 'continuationGradingWordStatus', gradeModel: 'continuationGradingModel', guideButton: 'getContinuationGuidanceBtn', gradeButton: 'startContinuationGradingBtn', gradeInput: 'continuationGradingInput', gradeProgress: 'continuationGradingProgress', gradeProgressText: 'continuationGradingProgressText', gradeProgressTime: 'continuationGradingTimeEst', gradeProgressBar: 'continuationGradingProgressBar', gradeResult: 'continuationGradingResult', gradeResultContent: 'continuationGradingResultContent',
+        guidanceResult: 'continuationGuidanceResult', guidanceContent: 'continuationGuidanceContent', score: { total: 'continuationTotalScore', stars: 'continuationScoreStars', content: 'continuationContentScore', language: 'continuationLanguageScore', structure: 'continuationStructureScore', norm: 'continuationNormScore' },
+        copyResult: 'copyContinuationResultBtn', downloadResult: 'downloadContinuationResultBtn', newWork: 'newContinuationGradingBtn', copyGuidance: 'copyContinuationGuidanceBtn', downloadGuidance: 'downloadContinuationGuidanceBtn', backFromGuidance: 'newContinuationGuidanceBtn'
+    });
+}
+
+function getById(id) { return document.getElementById(id); }
+
+function initStudentTabs() {
+    const applicationButton = getById('applicationBtn');
+    const continuationButton = getById('continuationBtn');
+    const application = getById('applicationSection');
+    const continuation = getById('continuationSection');
+    const setType = (type) => {
+        activeStudentType = type;
+        const applicationActive = type === 'application';
+        applicationButton.classList.toggle('active', applicationActive);
+        continuationButton.classList.toggle('active', !applicationActive);
+        application.classList.toggle('hidden', !applicationActive);
+        continuation.classList.toggle('hidden', applicationActive);
+    };
+    applicationButton.addEventListener('click', () => setType('application'));
+    continuationButton.addEventListener('click', () => setType('continuation'));
+}
+
+function initStudentOnboarding() {
+    document.querySelectorAll('.student-input-choice').forEach(button => {
+        button.addEventListener('click', () => {
+            document.querySelectorAll('.student-input-choice').forEach(item => item.classList.toggle('is-active', item === button));
+            const composer = studentComposers[activeStudentType];
+            if (!composer) return;
+            const target = button.dataset.inputMode === 'paste' ? composer.gradeFields.content : composer.dropZone;
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (button.dataset.inputMode === 'paste') setTimeout(() => composer.gradeFields.content.focus(), 450);
+        });
+    });
+}
+
+function initStudentComposer(config) {
+    const composer = {
+        ...config,
+        files: [],
+        activeWorkId: null,
+        currentHistoryRef: null,
+        fileInput: getById(config.fileInput), selectButton: getById(config.selectButton), dropZone: getById(config.dropZone), previewList: getById(config.previewList), startOcr: getById(config.startOcr),
+        ocrModel: getById(config.ocrModel), progress: getById(config.progress), progressText: getById(config.progressText), progressCount: getById(config.progressCount), progressBar: getById(config.progressBar), ocrResult: getById(config.ocrResult),
+        wordCount: getById(config.wordCount), wordHint: getById(config.wordHint), syncButton: getById(config.syncButton), clearOcr: getById(config.clearOcr),
+        gradeWordCount: getById(config.gradeWordCount), gradeWordStatus: getById(config.gradeWordStatus), gradeModel: getById(config.gradeModel), guideButton: getById(config.guideButton), gradeButton: getById(config.gradeButton), gradeInput: getById(config.gradeInput), gradeProgress: getById(config.gradeProgress), gradeProgressText: getById(config.gradeProgressText), gradeProgressTime: getById(config.gradeProgressTime), gradeProgressBar: getById(config.gradeProgressBar), gradeResult: getById(config.gradeResult), gradeResultContent: getById(config.gradeResultContent),
+        guidanceResult: getById(config.guidanceResult), guidanceContent: getById(config.guidanceContent),
+        total: getById(config.score.total), stars: getById(config.score.stars), contentScore: getById(config.score.content), languageScore: getById(config.score.language), structureScore: getById(config.score.structure), normScore: config.score.norm ? getById(config.score.norm) : null,
+        copyResult: getById(config.copyResult), downloadResult: getById(config.downloadResult), newWork: getById(config.newWork), copyGuidance: getById(config.copyGuidance), downloadGuidance: getById(config.downloadGuidance), backFromGuidance: getById(config.backFromGuidance)
+    };
+    composer.ocrFields = Object.fromEntries(Object.entries(config.ocrFields).map(([key, id]) => [key, getById(id)]));
+    composer.gradeFields = Object.fromEntries(Object.entries(config.gradeFields).map(([key, id]) => [key, getById(id)]));
+
+    composer.selectButton.addEventListener('click', () => composer.fileInput.click());
+    composer.dropZone.addEventListener('click', event => {
+        if (!event.target.closest('button') && !event.target.closest('input')) composer.fileInput.click();
+    });
+    composer.fileInput.addEventListener('change', event => addStudentFiles(composer, Array.from(event.target.files)));
+    ['dragover', 'dragenter'].forEach(name => composer.dropZone.addEventListener(name, event => { event.preventDefault(); composer.dropZone.classList.add('dragover'); }));
+    ['dragleave', 'drop'].forEach(name => composer.dropZone.addEventListener(name, event => composer.dropZone.classList.remove('dragover')));
+    composer.dropZone.addEventListener('drop', event => { event.preventDefault(); addStudentFiles(composer, Array.from(event.dataTransfer.files)); });
+    composer.startOcr.addEventListener('click', () => runStudentOcr(composer));
+    composer.syncButton.addEventListener('click', () => syncOcrToGrade(composer, true));
+    composer.clearOcr.addEventListener('click', () => {
+        Object.values(composer.ocrFields).forEach(field => field.value = '');
+        composer.ocrResult.classList.add('hidden');
+        composer.wordCount.textContent = '字数: 0 词';
+        composer.wordHint.textContent = composer.type === 'continuation' ? '建议: 130词以上' : '建议: 80词左右';
+        showToast('已清空识别文字，照片仍可重新识别');
+    });
+    Object.values(composer.gradeFields).forEach(field => field.addEventListener('input', () => updateComposerButtons(composer)));
+    composer.guideButton.addEventListener('click', () => runGuidance(composer));
+    composer.gradeButton.addEventListener('click', () => runGrading(composer));
+    composer.copyResult.addEventListener('click', () => copyText(composer.gradeResultContent.innerText));
+    composer.downloadResult.addEventListener('click', () => downloadTextFile(buildReportText(composer), `${composer.type === 'application' ? '应用文' : '读后续写'}批改报告_${dateKey()}.txt`));
+    composer.copyGuidance.addEventListener('click', () => copyText(composer.guidanceContent.innerText));
+    composer.downloadGuidance.addEventListener('click', () => downloadTextFile(composer.guidanceContent.innerText, `${composer.type === 'application' ? '应用文' : '读后续写'}写作思路_${dateKey()}.txt`));
+    composer.backFromGuidance.addEventListener('click', () => { composer.guidanceResult.classList.add('hidden'); composer.gradeInput.classList.remove('hidden'); });
+    composer.newWork.addEventListener('click', () => resetStudentWork(composer));
+    bindOcrCopyButtons(composer);
+    updateComposerButtons(composer);
+    return composer;
+}
+
+function bindOcrCopyButtons(composer) {
+    const scope = composer.ocrResult.parentElement;
+    scope.querySelectorAll('.copy-topic-btn').forEach(button => button.addEventListener('click', () => copyText(composer.ocrFields.topic.value)));
+    scope.querySelectorAll('.copy-original-btn').forEach(button => button.addEventListener('click', () => copyText(composer.ocrFields.original.value)));
+    scope.querySelectorAll('.copy-continuation-btn').forEach(button => button.addEventListener('click', () => copyText(composer.ocrFields.content.value)));
+    const copyAll = scope.querySelector('#copyAllBtn');
+    if (copyAll) copyAll.addEventListener('click', () => copyText(composer.ocrFields.content.value));
+}
+
+function addStudentFiles(composer, files) {
+    const valid = files.filter(file => validateOcrFile(file));
+    valid.forEach(file => composer.files.push({
+        id: createId(), file, roles: composer.files.length === 0 ? composer.roles.slice(0, composer.type === 'application' ? 1 : 2).map(role => role.value) : [composer.roles[composer.roles.length - 1].value],
+        rotation: 0, crop: null
+    }));
+    composer.fileInput.value = '';
+    renderStudentFiles(composer);
+}
+
+function renderStudentFiles(composer) {
+    composer.previewList.replaceChildren();
+    composer.files.forEach((item, index) => {
+        const row = document.createElement('article');
+        row.className = 'student-file-item';
+        const preview = document.createElement('div'); preview.className = 'student-file-preview';
+        if (isImageFile(item.file)) {
+            const image = document.createElement('img'); image.src = URL.createObjectURL(item.file); image.alt = `${item.file.name} 预览`; image.style.transform = `rotate(${item.rotation}deg)`; preview.append(image);
+        } else preview.textContent = 'PDF';
+        const details = document.createElement('div'); details.className = 'student-file-details';
+        const name = document.createElement('strong'); name.textContent = item.file.name;
+        const meta = document.createElement('span'); meta.textContent = `${formatFileSize(item.file.size)}${item.crop ? ' · 已裁剪' : ''}`;
+        details.append(name, meta);
+        const roles = document.createElement('div'); roles.className = 'student-role-buttons';
+        composer.roles.forEach(role => {
+            const button = document.createElement('button'); button.type = 'button'; button.textContent = role.label; button.className = item.roles.includes(role.value) ? 'active' : '';
+            button.addEventListener('click', () => { item.roles = toggleFileRole(item.roles, role.value); renderStudentFiles(composer); }); roles.append(button);
+        });
+        const tools = document.createElement('div'); tools.className = 'student-file-tools';
+        const moveUp = makeButton('↑', '上移'); moveUp.disabled = index === 0; moveUp.addEventListener('click', () => moveStudentFile(composer, index, -1));
+        const moveDown = makeButton('↓', '下移'); moveDown.disabled = index === composer.files.length - 1; moveDown.addEventListener('click', () => moveStudentFile(composer, index, 1));
+        const left = makeButton('↺', '向左旋转'); left.addEventListener('click', () => { item.rotation = (item.rotation + 270) % 360; renderStudentFiles(composer); });
+        const right = makeButton('↻', '向右旋转'); right.addEventListener('click', () => { item.rotation = (item.rotation + 90) % 360; renderStudentFiles(composer); });
+        const crop = makeButton('裁剪', '裁剪照片'); crop.disabled = !isImageFile(item.file); crop.addEventListener('click', () => openCropEditor(item, () => renderStudentFiles(composer)));
+        const remove = makeButton('删除', '删除照片'); remove.addEventListener('click', () => { composer.files.splice(index, 1); renderStudentFiles(composer); });
+        tools.append(moveUp, moveDown, left, right, crop, remove); row.append(preview, details, roles, tools); composer.previewList.append(row);
+    });
+    const hasFiles = composer.files.length > 0;
+    composer.previewList.classList.toggle('hidden', !hasFiles);
+    composer.startOcr.classList.toggle('hidden', !hasFiles);
+}
+
+function makeButton(text, label) { const button = document.createElement('button'); button.type = 'button'; button.textContent = text; button.setAttribute('aria-label', label); button.title = label; return button; }
+function moveStudentFile(composer, index, direction) { const destination = index + direction; if (destination < 0 || destination >= composer.files.length) return; [composer.files[index], composer.files[destination]] = [composer.files[destination], composer.files[index]]; renderStudentFiles(composer); }
+
+async function runStudentOcr(composer) {
+    if (!composer.files.length) return;
+    setComposerBusy(composer, true, '正在识别照片…');
+    const results = [];
+    try {
+        for (let index = 0; index < composer.files.length; index += 1) {
+            const item = composer.files[index];
+            composer.progressCount.textContent = `${index + 1}/${composer.files.length}`;
+            composer.progressText.textContent = `正在识别第 ${index + 1} 张…`;
+            composer.progressBar.style.width = `${(index / composer.files.length) * 100}%`;
+            try {
+                const file = await buildProcessedFile(item);
+                const result = await callEssayOCR(file, composer.ocrModel.value);
+                results.push({ ok: true, roles: item.roles, text: result.text, fileName: item.file.name });
+            } catch (error) { results.push({ ok: false, roles: item.roles, text: '', fileName: item.file.name, error: error.message }); }
+        }
+        const success = results.filter(result => result.ok).length;
+        if (!success) throw new Error('所有文件都识别失败，请检查图片清晰度后重试');
+        composer.progressText.textContent = '正在整理题目和作文…';
+        const grouped = await organizeOcrByRoles(results, composer.roles, OCR_SPLIT_MODEL);
+        Object.keys(composer.ocrFields).forEach(key => { if (key !== 'raw') composer.ocrFields[key].value = grouped[key] || ''; });
+        composer.ocrFields.raw.value = formatRoleOcrText(results, composer.roles);
+        updateOcrWordCount(composer);
+        syncOcrToGrade(composer, false);
+        composer.ocrResult.classList.remove('hidden');
+        composer.progressBar.style.width = '100%';
+        showToast(success === results.length ? '识别完成，请先检查文字' : `已识别 ${success} 张，另有 ${results.length - success} 张失败`, success === results.length ? 'success' : 'error');
+    } catch (error) {
+        showToast(`识别失败：${error.message}`, 'error');
+    } finally { setComposerBusy(composer, false); }
+}
+
+function updateOcrWordCount(composer) {
+    const count = countWords(composer.ocrFields.content.value);
+    composer.wordCount.textContent = `字数: ${count} 词`;
+    const min = composer.type === 'continuation' ? 130 : 60;
+    composer.wordHint.textContent = count >= min ? '✅ 字数合适' : `⚠️ 还需约 ${min - count} 词`;
+}
+
+function syncOcrToGrade(composer, scroll) {
+    ['topic', 'original', 'content'].forEach(key => { if (composer.gradeFields[key] && composer.ocrFields[key]) composer.gradeFields[key].value = composer.ocrFields[key].value.trim(); });
+    updateComposerButtons(composer);
+    if (scroll) { composer.gradeInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); showToast('已同步到批改区'); }
+}
+
+function updateComposerButtons(composer) {
+    const topic = composer.gradeFields.topic.value.trim();
+    const original = composer.gradeFields.original?.value.trim() || '';
+    const content = composer.gradeFields.content.value.trim();
+    const min = composer.type === 'continuation' ? 130 : 60;
+    const count = countWords(content);
+    composer.gradeWordCount.textContent = count;
+    composer.gradeWordStatus.textContent = count ? (count >= min ? '✅ 字数达标' : `⚠️ 还需约 ${min - count} 词`) : '';
+    const guideReady = composer.type === 'continuation' ? Boolean(topic && original) : Boolean(topic);
+    const gradeReady = composer.type === 'continuation' ? Boolean(topic && original && content) : Boolean(topic && content);
+    composer.guideButton.disabled = !guideReady;
+    composer.gradeButton.disabled = !gradeReady;
+    if (!guideReady && composer.type === 'continuation') composer.guideButton.title = '请先填写题目要求和原文内容';
+    if (!gradeReady) composer.gradeButton.title = composer.type === 'continuation' ? '请填写题目、原文和续写' : '请填写题目和作文';
+}
+
+async function runGuidance(composer) {
+    const input = readComposerInput(composer);
+    if (!input.topic || (composer.type === 'continuation' && !input.original)) return;
+    setComposerBusy(composer, true, 'AI 正在整理写作思路…');
+    try {
+        const result = composer.type === 'continuation'
+            ? await getContinuationGuidance(input.topic, input.original, composer.gradeModel.value)
+            : await getWritingGuidance(input.topic, composer.gradeModel.value);
+        renderGuidance(composer.guidanceContent, result);
+        const ref = recordStudentOutcome(composer, 'guidance', input, { text: result });
+        composer.currentHistoryRef = ref;
+        composer.guidanceResult.classList.remove('hidden');
+        showToast('写作思路已保存到学习记录');
+    } catch (error) { showToast(`思路生成失败：${error.message}`, 'error'); }
+    finally { setComposerBusy(composer, false); }
+}
+
+async function runGrading(composer) {
+    const input = readComposerInput(composer);
+    if (!input.topic || !input.content || (composer.type === 'continuation' && !input.original)) return;
+    setComposerBusy(composer, true, 'AI 正在生成批改报告…');
+    try {
+        const result = composer.type === 'continuation'
+            ? await gradeContinuation(input.topic, input.original, input.content, composer.gradeModel.value)
+            : await gradeEssay(input.topic, input.content, composer.gradeModel.value);
+        const data = normalizeGradeResult(result, composer.type);
+        const ref = recordStudentOutcome(composer, 'grading', input, data);
+        composer.currentHistoryRef = ref;
+        renderGradeResult(composer, data, ref);
+        composer.gradeResult.classList.remove('hidden');
+        showToast('批改完成，已加入学习记录');
+    } catch (error) { showToast(`批改失败：${error.message}`, 'error'); }
+    finally { setComposerBusy(composer, false); }
+}
+
+function setComposerBusy(composer, busy, message = '') {
+    composer.gradeInput.classList.toggle('hidden', busy);
+    composer.gradeProgress.classList.toggle('hidden', !busy);
+    if (busy) { composer.gradeResult.classList.add('hidden'); composer.guidanceResult.classList.add('hidden'); composer.gradeProgressText.textContent = message; composer.gradeProgressTime.textContent = '通常需要几秒钟'; composer.gradeProgressBar.style.width = '60%'; }
+    else composer.gradeProgressBar.style.width = '100%';
+    composer.progress.classList.toggle('hidden', !busy || !composer.files.length);
+}
+
+function readComposerInput(composer) { return { topic: composer.gradeFields.topic.value.trim(), original: composer.gradeFields.original?.value.trim() || '', content: composer.gradeFields.content.value.trim() }; }
+
+function normalizeGradeResult(raw, type) {
+    const maxima = type === 'continuation' ? { content: 8, language: 8, structure: 5, norm: 4, total: 25 } : { content: 5, language: 7, structure: 3, total: 15 };
+    let data;
+    try { data = parseJsonObject(raw); } catch { data = {}; }
+    const array = value => Array.isArray(value) ? value.filter(item => typeof item === 'string' && item.trim()) : [];
+    const text = value => typeof value === 'string' ? value.trim() : '';
+    const tasks = Array.isArray(data.revisionTasks) ? data.revisionTasks.map(task => ({
+        original: text(task.original) || '请定位原文中对应的问题句。', issue: text(task.issue) || '需要进一步修改', suggestion: text(task.suggestion) || '结合题目要求重写这句话。', reason: text(task.reason) || '让表达更准确、更符合评分要求。', practice: text(task.practice) || '完成一次针对性改写', completed: Boolean(task.completed)
+    })).slice(0, 3) : [];
+    const problems = array(data.problems);
+    if (!tasks.length) problems.slice(0, 3).forEach(problem => tasks.push({ original: '请在原文中找到相关表达。', issue: problem, suggestion: '根据题目要求改写并检查语法。', reason: '减少影响理解或得分的问题。', practice: '完成一次改写', completed: false }));
+    const scores = {};
+    Object.entries(maxima).filter(([key]) => key !== 'total').forEach(([key, max]) => scores[key] = clampNumber(data.scores?.[key], 0, max));
+    const calculated = Object.values(scores).reduce((sum, value) => sum + value, 0);
+    return { totalScore: clampNumber(data.totalScore, 0, maxima.total, calculated), scores, contentReview: text(data.contentReview) || '本次报告未能完整解析，请参考以下改稿任务后重试。', highlights: array(data.highlights), problems, suggestions: text(data.suggestions) || '先完成优先改稿任务，再重新提交。', modelAnswer: text(data.modelAnswer) || '暂无范文参考。', tips: text(data.tips) || '修改后再批改一次，观察分数和问题的变化。', rubricEvidence: array(data.rubricEvidence), missingRequirements: array(data.missingRequirements), confidence: text(data.confidence) || '中：AI 只能依据提交的文字作出预估。', revisionTasks: tasks };
+}
+
+function clampNumber(value, min, max, fallback = 0) { const number = Number(value); return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback; }
+
+function renderGradeResult(composer, data, ref) {
+    composer.total.textContent = `${data.totalScore}/${composer.maxScore}`;
+    composer.stars.textContent = '⭐'.repeat(Math.round(data.totalScore / composer.maxScore * 5)) + '☆'.repeat(5 - Math.round(data.totalScore / composer.maxScore * 5));
+    composer.contentScore.textContent = `${data.scores.content}/${composer.type === 'continuation' ? 8 : 5}`;
+    composer.languageScore.textContent = `${data.scores.language}/${composer.type === 'continuation' ? 8 : 7}`;
+    composer.structureScore.textContent = `${data.scores.structure}/${composer.type === 'continuation' ? 5 : 3}`;
+    if (composer.normScore) composer.normScore.textContent = `${data.scores.norm}/4`;
+    composer.gradeResultContent.replaceChildren();
+    appendTextCard(composer.gradeResultContent, '🧭 评分依据', data.rubricEvidence, 'AI 预估，建议以老师评分为准。');
+    appendTextCard(composer.gradeResultContent, '🔎 缺失要点', data.missingRequirements, '未发现明显缺失。');
+    appendTextCard(composer.gradeResultContent, '📍 AI 可信度', data.confidence);
+    appendTextCard(composer.gradeResultContent, '✅ 内容点评', data.contentReview);
+    appendTextCard(composer.gradeResultContent, '✨ 语言亮点', data.highlights, '暂未识别到明确亮点。');
+    appendTextCard(composer.gradeResultContent, '⚠️ 存在问题', data.problems, '暂未列出问题。');
+    appendRevisionTasks(composer.gradeResultContent, data.revisionTasks, ref);
+    appendTextCard(composer.gradeResultContent, '💡 改进建议', data.suggestions);
+    appendTextCard(composer.gradeResultContent, `📖 范文参考（约${composer.type === 'continuation' ? 130 : 80}词）`, data.modelAnswer, '', 'model-answer-card');
+    appendTextCard(composer.gradeResultContent, '🎯 提分秘诀', data.tips);
+}
+
+function appendTextCard(parent, title, content, fallback = '', extraClass = '') {
+    const card = document.createElement('section'); card.className = `grading-card ${extraClass}`.trim();
+    const heading = document.createElement('h4'); heading.textContent = title; card.append(heading);
+    const body = document.createElement('div'); body.className = 'content';
+    if (Array.isArray(content)) {
+        const list = document.createElement('ul'); (content.length ? content : [fallback]).forEach(item => { const line = document.createElement('li'); line.textContent = item; list.append(line); }); body.append(list);
+    } else body.textContent = content || fallback;
+    card.append(body); parent.append(card);
+}
+
+function appendRevisionTasks(parent, tasks, ref) {
+    const card = document.createElement('section'); card.className = 'grading-card revision-task-card';
+    const heading = document.createElement('h4'); heading.textContent = '✍️ 优先改稿任务'; card.append(heading);
+    tasks.forEach((task, index) => {
+        const item = document.createElement('label'); item.className = 'revision-task';
+        const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = task.completed; checkbox.addEventListener('change', () => { task.completed = checkbox.checked; updateHistoryTask(ref, index, checkbox.checked); });
+        const copy = document.createElement('span');
+        [['原句', task.original], ['问题', task.issue], ['建议', task.suggestion], ['原因', task.reason], ['练习目标', task.practice]].forEach(([label, value]) => { const line = document.createElement('span'); const strong = document.createElement('strong'); strong.textContent = `${label}：`; line.append(strong, document.createTextNode(value)); copy.append(line); });
+        item.append(checkbox, copy); card.append(item);
+    });
+    parent.append(card);
+}
+
+function renderGuidance(container, text) {
+    container.replaceChildren();
+    const sections = String(text || '').split(/\n(?=\d+\.\s*\*\*)/).filter(Boolean);
+    (sections.length ? sections : [text]).forEach(section => {
+        const match = section.match(/\*\*(.*?)\*\*/); const title = match ? match[1] : '写作思路';
+        appendTextCard(container, title, section.replace(/\d+\.\s*\*\*.*?\*\*\s*/, '').replace(/\*\*/g, '').trim());
+    });
+}
+
+function buildReportText(composer) { return `${composer.type === 'application' ? '英语应用文' : '英语读后续写'} AI 批改报告\n\nAI 预估分：${composer.total.textContent}\n\n${composer.gradeResultContent.innerText}\n\n生成时间：${new Date().toLocaleString('zh-CN')}`; }
+function copyText(text) {
+    if (!text.trim()) return showToast('没有可复制的内容', 'error');
+    if (!navigator.clipboard?.writeText) return showToast('当前浏览器不支持自动复制，请手动选择文字', 'error');
+    navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板')).catch(() => showToast('复制失败，请手动选择文字', 'error'));
+}
+function dateKey() { return new Date().toISOString().slice(0, 10); }
+function createId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
+
+function resetStudentWork(composer) {
+    Object.values(composer.gradeFields).forEach(field => field.value = '');
+    composer.activeWorkId = null; composer.currentHistoryRef = null;
+    composer.gradeResult.classList.add('hidden'); composer.guidanceResult.classList.add('hidden'); composer.gradeInput.classList.remove('hidden'); updateComposerButtons(composer);
+}
+
+function readStudentHistory() {
+    try { const data = JSON.parse(localStorage.getItem(STUDENT_HISTORY_KEY) || '[]'); return Array.isArray(data) ? data : []; }
+    catch { return []; }
+}
+
+function writeStudentHistory(history) {
+    let next = history.map(work => ({ ...work, versions: (work.versions || []).slice(-STUDENT_HISTORY_MAX_VERSIONS) })).slice(-STUDENT_HISTORY_MAX_WORKS);
+    let evicted = next.length < history.length;
+    while (next.length && JSON.stringify(next).length > STUDENT_HISTORY_MAX_BYTES) { next.shift(); evicted = true; }
+    try {
+        localStorage.setItem(STUDENT_HISTORY_KEY, JSON.stringify(next));
+        if (evicted) showToast('本机记录空间不足，已自动移除最早的学习记录', 'error');
+    }
+    catch { showToast('学习记录空间不足，未能保存本次内容', 'error'); }
+    renderStudentHistory();
+}
+
+function recordStudentOutcome(composer, kind, input, outcome) {
+    const history = readStudentHistory();
+    let work = history.find(item => item.id === composer.activeWorkId);
+    if (!work) {
+        work = { id: createId(), type: composer.type, title: input.topic.replace(/\s+/g, ' ').slice(0, 36) || '未命名作文', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), versions: [] };
+        composer.activeWorkId = work.id; history.push(work);
+    }
+    const version = { id: createId(), number: work.versions.length + 1, kind, createdAt: new Date().toISOString(), input: { ...input }, outcome };
+    work.updatedAt = version.createdAt; work.versions.push(version);
+    writeStudentHistory(history);
+    return { workId: work.id, versionId: version.id };
+}
+
+function updateHistoryTask(ref, index, completed) {
+    if (!ref) return;
+    const history = readStudentHistory();
+    const version = history.find(work => work.id === ref.workId)?.versions.find(item => item.id === ref.versionId);
+    if (version?.outcome?.revisionTasks?.[index]) version.outcome.revisionTasks[index].completed = completed;
+    writeStudentHistory(history);
+}
+
+function initStudentHistory() {
+    const drawer = getById('learningHistoryDrawer'); const backdrop = getById('historyBackdrop'); const toggle = getById('historyToggleBtn');
+    const setOpen = open => { drawer.classList.toggle('is-open', open); backdrop.classList.toggle('hidden', !open); drawer.setAttribute('aria-hidden', String(!open)); toggle.setAttribute('aria-expanded', String(open)); if (open) renderStudentHistory(); };
+    toggle.addEventListener('click', () => setOpen(!drawer.classList.contains('is-open')));
+    getById('historyCloseBtn').addEventListener('click', () => setOpen(false)); backdrop.addEventListener('click', () => setOpen(false));
+    getById('clearLearningHistoryBtn').addEventListener('click', () => { if (window.confirm('确定清空这台设备上的全部学习记录吗？')) { localStorage.removeItem(STUDENT_HISTORY_KEY); getById('historyComparePanel').classList.add('hidden'); renderStudentHistory(); } });
+    window.studentCloseHistory = () => setOpen(false);
+    renderStudentHistory();
+}
+
+function renderStudentHistory() {
+    const list = getById('learningHistoryList'); if (!list) return;
+    const history = readStudentHistory().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)); list.replaceChildren();
+    if (!history.length) { const empty = document.createElement('p'); empty.className = 'history-empty'; empty.textContent = '还没有记录。完成一次思路指导或批改后，它会出现在这里。'; list.append(empty); return; }
+    history.forEach(work => {
+        const card = document.createElement('article'); card.className = 'history-work-card';
+        const heading = document.createElement('h3'); heading.textContent = work.title;
+        const meta = document.createElement('p'); meta.textContent = `${work.type === 'application' ? '应用文' : '读后续写'} · ${new Date(work.updatedAt).toLocaleString('zh-CN')} · ${work.versions.length} 个版本`;
+        card.append(heading, meta);
+        [...work.versions].reverse().forEach((version, reverseIndex) => {
+            const row = document.createElement('div'); row.className = 'history-version-row';
+            const label = document.createElement('span'); const score = version.kind === 'grading' ? ` · ${version.outcome.totalScore} 分` : ' · 思路指导'; label.textContent = `第 ${version.number} 版${score}`;
+            const load = makeButton('打开', '打开该版本'); load.textContent = '打开'; load.addEventListener('click', () => loadHistoryVersion(work, version)); row.append(label, load);
+            if (reverseIndex < work.versions.length - 1) { const compare = makeButton('对比', '与上一版对比'); compare.textContent = '对比'; compare.addEventListener('click', () => showHistoryComparison(work, version)); row.append(compare); }
+            const remove = makeButton('删除', '删除此版本'); remove.textContent = '删除'; remove.addEventListener('click', () => deleteHistoryVersion(work.id, version.id)); row.append(remove); card.append(row);
+        }); list.append(card);
+    });
+}
+
+function loadHistoryVersion(work, version) {
+    const composer = studentComposers[work.type]; if (!composer) return;
+    activeStudentType = work.type; getById(work.type === 'application' ? 'applicationBtn' : 'continuationBtn').click();
+    Object.entries(version.input).forEach(([key, value]) => { if (composer.gradeFields[key]) composer.gradeFields[key].value = value || ''; });
+    composer.activeWorkId = work.id; composer.currentHistoryRef = { workId: work.id, versionId: version.id }; updateComposerButtons(composer);
+    if (version.kind === 'grading') { renderGradeResult(composer, version.outcome, composer.currentHistoryRef); composer.gradeResult.classList.remove('hidden'); }
+    else { renderGuidance(composer.guidanceContent, version.outcome.text); composer.guidanceResult.classList.remove('hidden'); }
+    window.studentCloseHistory?.(); composer.gradeInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function deleteHistoryVersion(workId, versionId) {
+    const history = readStudentHistory().map(work => work.id === workId ? { ...work, versions: work.versions.filter(version => version.id !== versionId) } : work).filter(work => work.versions.length);
+    writeStudentHistory(history);
+}
+
+function showHistoryComparison(work, version) {
+    const older = work.versions[version.number - 2]; if (!older) return;
+    const panel = getById('historyComparePanel'); panel.replaceChildren(); panel.classList.remove('hidden');
+    const title = document.createElement('h3'); title.textContent = `第 ${older.number} 版 → 第 ${version.number} 版`;
+    const summary = document.createElement('p'); const oldScore = older.outcome.totalScore; const newScore = version.outcome.totalScore;
+    summary.textContent = Number.isFinite(oldScore) && Number.isFinite(newScore) ? `AI 预估分变化：${oldScore} → ${newScore}（${newScore - oldScore >= 0 ? '+' : ''}${newScore - oldScore}）` : '此版本为思路指导，暂无分数对比。';
+    const changes = document.createElement('p'); changes.textContent = summarizeTextChange(older.input.content || '', version.input.content || '');
+    const before = document.createElement('details'); before.open = true; const beforeTitle = document.createElement('summary'); beforeTitle.textContent = '上一版正文'; const beforeText = document.createElement('pre'); beforeText.textContent = older.input.content || '（无正文）'; before.append(beforeTitle, beforeText);
+    const after = document.createElement('details'); const afterTitle = document.createElement('summary'); afterTitle.textContent = '这一版正文'; const afterText = document.createElement('pre'); afterText.textContent = version.input.content || '（无正文）'; after.append(afterTitle, afterText);
+    panel.append(title, summary, changes, before, after);
+}
+
+function summarizeTextChange(before, after) {
+    const beforeWords = new Set(before.split(/\s+/).filter(Boolean)); const afterWords = new Set(after.split(/\s+/).filter(Boolean));
+    const added = [...afterWords].filter(word => !beforeWords.has(word)).length; const removed = [...beforeWords].filter(word => !afterWords.has(word)).length;
+    return `文本变化：新增或替换约 ${added} 个词，移除或替换约 ${removed} 个词。打开版本可查看完整内容。`;
+}
+
+function initPhotoEditor() {
+    const modal = getById('photoEditorModal'); const close = () => { modal.classList.add('hidden'); activeCropEditor = null; };
+    getById('photoEditorCloseBtn').addEventListener('click', close);
+    modal.addEventListener('click', event => { if (event.target === modal) close(); });
+    ['cropLeftInput', 'cropTopInput', 'cropWidthInput', 'cropHeightInput'].forEach(id => getById(id).addEventListener('input', drawCropPreview));
+    getById('photoEditorResetBtn').addEventListener('click', () => { ['cropLeftInput', 'cropTopInput'].forEach(id => getById(id).value = 0); ['cropWidthInput', 'cropHeightInput'].forEach(id => getById(id).value = 100); drawCropPreview(); });
+    getById('photoEditorApplyBtn').addEventListener('click', () => { if (!activeCropEditor) return; const { item, refresh } = activeCropEditor; item.crop = readCropValues(); refresh(); close(); });
+}
+
+function openCropEditor(item, refresh) {
+    if (!isImageFile(item.file)) return showToast('PDF 暂不支持裁剪', 'error');
+    activeCropEditor = { item, refresh, image: null };
+    const crop = item.crop || { left: 0, top: 0, width: 100, height: 100 };
+    getById('cropLeftInput').value = crop.left; getById('cropTopInput').value = crop.top; getById('cropWidthInput').value = crop.width; getById('cropHeightInput').value = crop.height;
+    const image = new Image(); image.onload = () => { if (activeCropEditor) { activeCropEditor.image = image; drawCropPreview(); } }; image.src = URL.createObjectURL(item.file);
+    getById('photoEditorModal').classList.remove('hidden');
+}
+
+function readCropValues() {
+    let left = Number(getById('cropLeftInput').value); let top = Number(getById('cropTopInput').value); let width = Number(getById('cropWidthInput').value); let height = Number(getById('cropHeightInput').value);
+    width = Math.min(width, 100 - left); height = Math.min(height, 100 - top);
+    return { left, top, width, height };
+}
+
+function drawCropPreview() {
+    const editor = activeCropEditor; if (!editor?.image) return;
+    const canvas = getById('photoEditorCanvas'); const image = editor.image; const crop = readCropValues();
+    canvas.width = 720; canvas.height = Math.max(240, Math.round(720 * image.height / image.width));
+    const context = canvas.getContext('2d'); context.clearRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    context.fillStyle = 'rgba(0,0,0,.45)'; const x = crop.left / 100 * canvas.width; const y = crop.top / 100 * canvas.height; const width = crop.width / 100 * canvas.width; const height = crop.height / 100 * canvas.height;
+    context.fillRect(0, 0, canvas.width, canvas.height); context.clearRect(x, y, width, height); context.strokeStyle = '#ffffff'; context.lineWidth = 3; context.strokeRect(x, y, width, height);
+}
+
+async function buildProcessedFile(item) {
+    if (!isImageFile(item.file) || (!item.rotation && !item.crop)) return item.file;
+    const image = await loadImageFile(item.file); const crop = item.crop || { left: 0, top: 0, width: 100, height: 100 };
+    const sourceX = Math.round(image.width * crop.left / 100); const sourceY = Math.round(image.height * crop.top / 100); const sourceWidth = Math.max(1, Math.round(image.width * crop.width / 100)); const sourceHeight = Math.max(1, Math.round(image.height * crop.height / 100));
+    const swap = item.rotation % 180 !== 0; const canvas = document.createElement('canvas'); canvas.width = swap ? sourceHeight : sourceWidth; canvas.height = swap ? sourceWidth : sourceHeight;
+    const context = canvas.getContext('2d'); context.translate(canvas.width / 2, canvas.height / 2); context.rotate(item.rotation * Math.PI / 180); context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, -sourceWidth / 2, -sourceHeight / 2, sourceWidth, sourceHeight);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, item.file.type || 'image/jpeg', .92));
+    return new File([blob || item.file], item.file.name.replace(/(\.[^.]+)?$/, '-edited$1'), { type: item.file.type || 'image/jpeg' });
+}
+
+function loadImageFile(file) { return new Promise((resolve, reject) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error('无法读取图片')); image.src = URL.createObjectURL(file); }); }
 
 })();

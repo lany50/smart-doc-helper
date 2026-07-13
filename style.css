@@ -1532,3 +1532,91 @@ input:focus-visible {
 @media (prefers-color-scheme: dark) {
     /* 如果需要支持暗色模式，在这里添加样式 */
 }
+
+/* 学生学习闭环 */
+.student-history-toggle,
+.student-input-choice,
+.student-file-tools button,
+.student-role-buttons button,
+.history-version-row button,
+.photo-editor-actions button {
+    border: 1px solid rgba(70, 121, 159, .28);
+    background: #fff;
+    color: #29445c;
+    border-radius: 10px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.student-history-toggle { padding: 9px 13px; font-size: 14px; }
+.student-onboarding { max-width: 900px; margin: 0 auto 28px; padding: 18px; border: 2px solid rgba(140, 200, 255, .38); border-radius: 18px; background: rgba(255,255,255,.78); box-shadow: 0 5px 0 rgba(140, 200, 255, .11); }
+.student-onboarding-copy { display: flex; gap: 10px; align-items: baseline; color: var(--classroom-ink); }
+.student-onboarding-copy span { color: var(--classroom-muted); font-size: 14px; }
+.student-input-actions { display: flex; gap: 10px; margin-top: 14px; }
+.student-input-choice { padding: 10px 14px; }
+.student-input-choice.is-active { background: #387eae; color: #fff; border-color: #387eae; }
+.student-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0 0; padding: 0; list-style: none; color: var(--classroom-muted); font-size: 13px; }
+.student-steps li { display: flex; align-items: center; gap: 7px; }
+.student-steps b { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #dff3ff; color: #28749e; }
+
+.student-file-item { display: grid; grid-template-columns: 58px minmax(105px, 1fr) minmax(120px, auto) auto; gap: 10px; align-items: center; padding: 9px; border: 1px solid rgba(140, 200, 255, .38); border-radius: 12px; background: rgba(255,255,255,.82); }
+.student-file-preview { width: 58px; height: 54px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #edf8ff; font-size: 11px; font-weight: 800; }
+.student-file-preview img { width: 100%; height: 100%; object-fit: cover; }
+.student-file-details { min-width: 0; display: grid; gap: 3px; }
+.student-file-details strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.student-file-details span { color: var(--classroom-muted); font-size: 11px; }
+.student-role-buttons, .student-file-tools { display: flex; gap: 4px; flex-wrap: wrap; }
+.student-role-buttons button, .student-file-tools button { padding: 5px 7px; font-size: 11px; }
+.student-role-buttons button.active { color: #fff; border-color: #3b8ebf; background: #3b8ebf; }
+.student-file-tools button:disabled { opacity: .35; cursor: not-allowed; }
+
+.revision-task-card { border-color: rgba(139, 92, 246, .3); }
+.revision-task { display: grid; grid-template-columns: 20px 1fr; gap: 8px; padding: 10px 0; border-top: 1px dashed rgba(70, 121, 159, .22); cursor: pointer; }
+.revision-task > span { display: grid; gap: 4px; line-height: 1.55; }
+.revision-task input { margin-top: 3px; accent-color: #7c3aed; }
+
+.learning-history-drawer { position: fixed; z-index: 70; top: 0; right: 0; width: min(460px, 100vw); height: 100vh; padding: 22px; overflow-y: auto; background: #f8fcff; box-shadow: -16px 0 44px rgba(26, 70, 100, .22); transform: translateX(105%); transition: transform .25s ease; }
+.learning-history-drawer.is-open { transform: translateX(0); }
+.history-backdrop { position: fixed; z-index: 60; inset: 0; background: rgba(28, 51, 68, .36); }
+.history-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding-bottom: 16px; border-bottom: 1px solid rgba(70, 121, 159, .2); }
+.history-drawer-header h2 { margin: 0; font-size: 22px; }
+.history-drawer-header p { margin: 5px 0 0; color: var(--classroom-muted); font-size: 12px; }
+.history-drawer-header button { border: 0; background: transparent; color: #29445c; font-size: 30px; cursor: pointer; }
+.learning-history-list { display: grid; gap: 12px; margin: 18px 0; }
+.history-work-card { padding: 13px; border: 1px solid rgba(140, 200, 255, .4); border-radius: 13px; background: #fff; }
+.history-work-card h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.history-work-card > p, .history-empty { margin: 5px 0 10px; color: var(--classroom-muted); font-size: 12px; line-height: 1.5; }
+.history-version-row { display: flex; align-items: center; gap: 6px; padding-top: 8px; font-size: 12px; }
+.history-version-row span { margin-right: auto; }
+.history-version-row button { padding: 4px 6px; font-size: 11px; }
+.history-clear-btn { width: 100%; padding: 10px; border: 1px solid #ef8b8b; color: #b93434; background: #fff; border-radius: 10px; cursor: pointer; }
+.history-compare-panel { margin-top: 15px; padding: 12px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, .28); background: #faf7ff; font-size: 13px; line-height: 1.55; }
+.history-compare-panel h3, .history-compare-panel p { margin: 0 0 6px; }
+.history-compare-panel details { margin-top: 8px; }
+.history-compare-panel summary { cursor: pointer; font-weight: 800; }
+.history-compare-panel pre { max-height: 180px; margin: 7px 0 0; padding: 8px; overflow: auto; white-space: pre-wrap; border-radius: 8px; background: #fff; font: 12px/1.5 'Nunito', 'Microsoft YaHei', sans-serif; }
+
+.photo-editor-modal { position: fixed; z-index: 90; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(26, 40, 52, .6); }
+.photo-editor-dialog { width: min(760px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: 18px; border-radius: 18px; background: #fff; }
+.photo-editor-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.photo-editor-header h2 { margin: 0; font-size: 20px; }
+.photo-editor-header button { border: 0; background: transparent; font-size: 28px; cursor: pointer; }
+.photo-editor-dialog > p { margin: 8px 0 14px; color: var(--classroom-muted); font-size: 13px; }
+.photo-editor-canvas { display: block; width: 100%; max-height: 380px; object-fit: contain; border-radius: 10px; background: #edf8ff; }
+.photo-crop-controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 16px; margin-top: 14px; font-size: 13px; }
+.photo-crop-controls label { display: grid; grid-template-columns: 55px 1fr; align-items: center; gap: 8px; }
+.photo-editor-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.photo-editor-actions button { padding: 9px 13px; }
+.photo-editor-actions button:last-child { background: #387eae; color: #fff; border-color: #387eae; }
+
+@media (max-width: 768px) {
+    .student-history-toggle { padding: 8px; font-size: 12px; }
+    .student-onboarding-copy { display: grid; gap: 3px; }
+    .student-input-actions { display: grid; grid-template-columns: 1fr 1fr; }
+    .student-input-choice { padding: 9px 7px; font-size: 12px; }
+    .student-steps { grid-template-columns: 1fr; gap: 7px; }
+    .student-file-item { grid-template-columns: 50px 1fr; }
+    .student-role-buttons, .student-file-tools { grid-column: 1 / -1; }
+    .student-role-buttons button, .student-file-tools button { flex: 1; }
+    .photo-crop-controls { grid-template-columns: 1fr; }
+}
