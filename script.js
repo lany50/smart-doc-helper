@@ -1879,7 +1879,7 @@ function updateWordCount(text, countEl, hintEl) {
 
     if (count === 0) {
         hintEl.textContent = '建议: 80词左右';
-        hintEl.className = 'text-xs text-[#3A3632] opacity-60';
+        hintEl.className = 'text-xs text-muted';
     } else if (count >= 60 && count <= 100) {
         hintEl.textContent = '✅ 字数合适';
         hintEl.className = 'text-xs word-count-good';

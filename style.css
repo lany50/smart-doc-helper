@@ -463,7 +463,7 @@ h1, h2, h3, h4,
 .grading-card {
     background: var(--surface-strong);
     border: 2px solid rgba(140, 200, 255, 0.30);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     padding: 16px;
     box-shadow: var(--shadow-sticker);
     transition: all 0.3s;
@@ -664,62 +664,193 @@ h1, h2, h3, h4,
 .photo-editor-actions button:last-child { background: #387eae; color: #fff; border-color: #387eae; }
 
 /* ========================================
-   兼容层：劫持 HTML 中写死的 Tailwind 任意值 class
-   ⚠️ 阶段2会把 HTML 换成语义组件 class 后整段删除
+   语义组件层
+   贴纸视觉语言：2px 描边 + 实心投影 + 按压下沉
 ======================================== */
 
-#legacyApp .w-10.h-10.rounded-full {
-    background: var(--grad-warm) !important;
-    color: var(--ink) !important;
+.text-muted {
+    color: var(--muted);
 }
 
-#legacyApp .text-\[\#2D2A26\],
-#legacyApp .text-\[\#3A3632\] {
-    color: var(--ink) !important;
+.brand-badge {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-full);
+    background: var(--grad-warm);
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
-#legacyApp [class*="text-[#E07B39]"],
-#legacyApp [class*="text-[#8B5CF6]"] {
-    color: var(--mint-strong) !important;
+.card {
+    background: var(--surface);
+    backdrop-filter: blur(4px);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sticker);
 }
 
-#legacyApp [class*="border-[#F4A261"],
-#legacyApp [class*="border-[#E07B39"],
-#legacyApp [class*="border-[#8B5CF6"] {
-    border-color: var(--border) !important;
+.card-title {
+    font-size: 1.125rem;
 }
 
-#legacyApp [class*="bg-[#F8F4EC]"],
-#legacyApp [class*="bg-[#FFF9F0]"] {
-    background: var(--surface-tint) !important;
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 0 var(--btn-shadow, rgba(140, 200, 255, 0.30));
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease, filter 0.2s ease;
 }
 
-#legacyApp [class*="bg-[#E07B39]"],
-#legacyApp [class*="from-[#E07B39]"] {
-    background: var(--grad-primary) !important;
-    color: #fff !important;
+.btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 0 var(--btn-shadow, rgba(140, 200, 255, 0.30));
+    filter: brightness(1.03);
 }
 
-#legacyApp [class*="from-[#8B5CF6]"],
-#legacyApp [class*="bg-[#8B5CF6]"] {
-    background: linear-gradient(135deg, #82d9bd 0%, #8cc8ff 100%) !important;
-    color: #fff !important;
+.btn:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 var(--btn-shadow, rgba(140, 200, 255, 0.30));
+    filter: none;
 }
 
-#legacyApp .bg-white\/70,
-#legacyApp .bg-white\/80,
-#legacyApp .bg-white {
-    background: var(--surface) !important;
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
-#legacyApp .rounded-2xl,
-#legacyApp .rounded-xl,
-#legacyApp .rounded-lg {
-    border-radius: var(--radius-sm) !important;
+.btn-primary {
+    background: var(--grad-primary);
+    color: #fff;
+    border-color: rgba(79, 158, 232, 0.4);
+    --btn-shadow: rgba(69, 173, 145, 0.28);
 }
 
-#legacyApp .shadow-lg {
-    box-shadow: var(--shadow-float) !important;
+.btn-accent {
+    background: linear-gradient(135deg, #82d9bd 0%, #8cc8ff 100%);
+    color: #fff;
+    border-color: rgba(130, 217, 189, 0.5);
+    --btn-shadow: rgba(79, 158, 232, 0.25);
+}
+
+.btn-ghost {
+    background: var(--surface-strong);
+    color: var(--mint-strong);
+    border-color: var(--border);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background: var(--surface-tint);
+}
+
+.btn-soft {
+    background: var(--surface-tint);
+    color: var(--ink);
+    --btn-shadow: rgba(140, 200, 255, 0.22);
+}
+
+.btn-link {
+    border: none;
+    background: none;
+    color: var(--mint-strong);
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.btn-link:hover {
+    text-decoration: underline;
+}
+
+.btn-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.field {
+    border: 2px solid var(--field-border);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    color: var(--ink);
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field:focus {
+    border-color: var(--blue-strong);
+    box-shadow: var(--focus-ring);
+}
+
+.dropzone {
+    min-height: 172px;
+    border: 3px dashed rgba(79, 158, 232, 0.42);
+    border-radius: var(--radius-md);
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(240, 251, 255, 0.86)),
+        repeating-linear-gradient(-8deg, transparent 0 18px, rgba(255, 229, 143, 0.22) 18px 20px);
+    transition: border-color 0.3s ease, background 0.3s ease, transform 0.3s ease;
+}
+
+.dropzone:hover,
+.dropzone.dragover {
+    border-color: var(--mint-strong);
+    background: linear-gradient(135deg, #f0fbff 0%, #fff8de 100%);
+    transform: translateY(-1px);
+}
+
+.dropzone-icon {
+    color: var(--mint-strong);
+    opacity: 0.7;
+}
+
+.progress-track {
+    background: var(--surface-tint);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--grad-primary);
+    border-radius: var(--radius-full);
+    transition: width 0.5s ease;
+}
+
+.score-card {
+    background: var(--grad-primary);
+    color: #fff;
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 0 rgba(69, 173, 145, 0.28);
+}
+
+.score-list {
+    background: var(--surface-strong);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sticker);
+}
+
+.score-value {
+    font-weight: 800;
+    color: var(--mint-strong);
+}
+
+.guidance-panel {
+    background: linear-gradient(135deg, var(--surface-tint) 0%, var(--surface-strong) 100%);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+#legacyApp footer {
+    border-top: 1px solid var(--line);
 }
 
 #legacyApp button {
@@ -730,41 +861,6 @@ h1, h2, h3, h4,
 #legacyApp button.text-xs,
 #legacyApp button.text-sm {
     font-size: 14px !important;
-}
-
-#legacyApp textarea,
-#legacyApp select {
-    border: 2px solid var(--field-border) !important;
-    border-radius: var(--radius-sm) !important;
-    background: var(--field-bg) !important;
-    color: var(--ink) !important;
-    font-size: 16px !important;
-}
-
-#legacyApp textarea:focus,
-#legacyApp select:focus {
-    border-color: var(--blue-strong) !important;
-    box-shadow: var(--focus-ring) !important;
-}
-
-/* 拖拽上传区（需在兼容层之后，压过 HTML 上写死的 border 任意值 class） */
-#legacyApp [id$="DropZone"],
-#essayDropZone,
-#continuationDropZone {
-    min-height: 172px;
-    border: 3px dashed rgba(79, 158, 232, 0.42) !important;
-    background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(240, 251, 255, 0.86)),
-        repeating-linear-gradient(-8deg, transparent 0 18px, rgba(255, 229, 143, 0.22) 18px 20px) !important;
-}
-
-#legacyApp [id$="DropZone"]:hover,
-#essayDropZone:hover,
-#continuationDropZone:hover,
-.dragover {
-    border-color: var(--mint-strong) !important;
-    background: linear-gradient(135deg, #f0fbff 0%, #fff8de 100%) !important;
-    transform: translateY(-1px);
 }
 
 /* ========================================
@@ -982,10 +1078,8 @@ body.night-mode {
 }
 
 .night-mode #legacyApp header nav { background: rgba(29, 42, 56, .88); border-color: rgba(255, 229, 143, .28); }
-.night-mode #legacyApp [id$="DropZone"],
-.night-mode #essayDropZone,
-.night-mode #continuationDropZone { background: var(--surface-tint) !important; }
-.night-mode #legacyApp textarea::placeholder { color: #90a6bb; }
+.night-mode .dropzone { background: var(--surface-tint); }
+.night-mode .field::placeholder { color: #90a6bb; }
 .night-mode .ocr-status-note,
 .night-mode .ocr-raw-details { border-color: rgba(255, 229, 143, .3); color: var(--muted); }
 .night-mode #legacyApp .essay-type-tab:hover:not(:disabled) { background: #223447; }
@@ -1052,13 +1146,13 @@ body.night-mode {
         font-size: 13px;
     }
 
-    /* 移动端按钮组竖排（阶段2将换成语义化的 .btn-row） */
-    .flex.gap-2 {
+    /* 移动端按钮组竖排 */
+    .btn-row {
         flex-direction: column;
         gap: 8px;
     }
 
-    .flex.gap-2 button {
+    .btn-row button {
         width: 100%;
     }
 
