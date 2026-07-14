@@ -11,7 +11,9 @@ async function getBlobStore(name) {
     }
     // 静态 require（@netlify/blobs 提供 CJS 构建），保证被函数打包器跟踪收录
     const { getStore } = require('@netlify/blobs');
-    const options = { name, consistency: 'strong' };
+    // 注意：不能用 consistency:'strong'——旧式函数注入的上下文没有 uncachedEdgeURL，
+    // 强一致性读会直接报错；默认最终一致性对本场景（预生成卡密、低频扣次）足够
+    const options = { name };
     // 兜底：自动注入失效时可在 Netlify 环境变量手动配 NETLIFY_BLOBS_SITE_ID + NETLIFY_BLOBS_TOKEN
     if (process.env.NETLIFY_BLOBS_TOKEN) {
         options.siteID = process.env.NETLIFY_BLOBS_SITE_ID || process.env.SITE_ID || '';
