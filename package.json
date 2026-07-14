@@ -7,5 +7,8 @@
     "build": "node inject-env.js"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@netlify/blobs": "^10.7.9"
+  }
 }

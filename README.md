@@ -239,6 +239,18 @@ netlify deploy --prod
 | `OCR_API_BASE_URL` | OCR 视觉模型 API 基础地址（未配置时回退到 `API_BASE_URL`） | `https://api.chatst.org` |
 | `OCR_API_KEY` | OCR 视觉模型密钥（未配置时回退到 `API_KEY`） | `sk-...` |
 | `OCR_MODEL` | OCR 使用的视觉模型 | `gemini-3.5-flash` |
+| `ADMIN_SECRET` | 次数卡后台（`/admin.html`）管理密码，**必须配置** | 长随机字符串 |
+| `FREE_GRADES_PER_DAY` | 无卡用户每 IP 每天免费批改次数（默认 2） | `2` |
+| `FREE_OCR_PER_DAY` | 无卡用户每 IP 每天免费 OCR 次数（默认 15） | `15` |
+| `FREE_SPLITS_PER_DAY` | 无卡用户每 IP 每天免费文本整理次数（默认 30） | `30` |
+
+#### 次数卡（付费）系统
+
+- 批改 / 写作思路每次扣 1 次数；OCR 与文本整理免费但按 IP 限频
+- 卡密存储于 Netlify Blobs（`cards` / `usage` / `stats` 三个 store）
+- 用户端：页面右上角「次数卡」按钮兑换卡密、查看余额
+- 管理端：`/admin.html` 生成卡密（付费/班级共享/家教学生/自用）、查看用量、停用/补次数
+- 本地逻辑测试：`node tools/local-test.mjs`
 
 ---
 

@@ -49,6 +49,7 @@
         <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
         <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></symbol>
         <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+        <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a3 3 0 0 1 0-6V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></symbol>
     </svg>
     <div id="legacyApp">
     <!-- 装饰性背景 -->
@@ -67,6 +68,9 @@
                     <h1 class="text-2xl">作文批改助手</h1>
                 </div>
                 <div class="student-header-actions">
+                    <button id="cardPanelBtn" class="student-history-toggle" type="button" aria-haspopup="dialog" title="次数卡与免费额度">
+                        <svg class="icon"><use href="#i-ticket"></use></svg> <span id="cardBalanceText">次数卡</span>
+                    </button>
                     <button id="themeToggleBtn" class="student-theme-toggle" type="button" aria-pressed="false" title="切换夜间模式">
                         <svg class="icon"><use href="#i-moon"></use></svg> 夜间模式
                     </button>
@@ -596,6 +600,26 @@
                 <label>高度 <input id="cropHeightInput" type="range" min="20" max="100" value="100"></label>
             </div>
             <div class="photo-editor-actions"><button id="photoEditorResetBtn" type="button">重置</button><button id="photoEditorApplyBtn" type="button">应用裁剪</button></div>
+        </div>
+    </div>
+
+    <!-- 次数卡弹窗 -->
+    <div id="cardModal" class="card-modal hidden" role="dialog" aria-modal="true" aria-labelledby="cardModalTitle">
+        <div class="card-modal-panel">
+            <div class="card-modal-header">
+                <h3 id="cardModalTitle"><svg class="icon"><use href="#i-ticket"></use></svg> 次数卡</h3>
+                <button id="cardModalCloseBtn" class="btn btn-ghost px-3 py-1 text-sm" type="button">关闭</button>
+            </div>
+            <p id="cardModalReason" class="card-modal-reason hidden"></p>
+            <p id="cardCurrentStatus" class="card-modal-status">正在加载…</p>
+            <div class="card-modal-redeem">
+                <input id="cardCodeInput" class="field flex-1 px-3 py-2" type="text" placeholder="输入卡密，如 AB2C-3DEF-GH4J" autocomplete="off" spellcheck="false">
+                <button id="cardRedeemBtn" class="btn btn-primary px-4 py-2" type="button">兑换 / 查询</button>
+            </div>
+            <div class="card-modal-footer">
+                <p class="text-sm text-muted">每天有 2 次免费批改。需要更多次数？<span id="cardPurchaseGuide"></span></p>
+                <button id="cardUnbindBtn" class="btn btn-ghost px-3 py-1 text-xs" type="button">解除绑定</button>
+            </div>
         </div>
     </div>
 

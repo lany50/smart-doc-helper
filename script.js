@@ -8,11 +8,170 @@
 
 const OCR_ENDPOINT = window.NETLIFY_CONFIG?.ocrEndpoint || '/.netlify/functions/vision-ocr';
 const TEXT_MODEL_ENDPOINT = window.NETLIFY_CONFIG?.textModelEndpoint || '/.netlify/functions/chat-completion';
+const CARD_REDEEM_ENDPOINT = window.NETLIFY_CONFIG?.cardRedeemEndpoint || '/.netlify/functions/card-redeem';
 
 console.log('API配置状态:', {
     ocrEndpoint: OCR_ENDPOINT,
     textModelEndpoint: TEXT_MODEL_ENDPOINT
 });
+
+// ========================================
+// 次数卡（卡密）
+// ========================================
+const CARD_STORAGE_KEY = 'smart-doc-helper:card-code';
+// 购买引导文案：上架后把闲鱼商品链接/口令粘贴到这里
+const CARD_PURCHASE_GUIDE = '打开闲鱼 App，搜索「粉彩作文小助手 次数卡」即可购买；付款后系统自动发卡密。';
+
+function getSavedCardCode() {
+    try { return localStorage.getItem(CARD_STORAGE_KEY) || ''; } catch { return ''; }
+}
+
+function saveCardCode(code) {
+    try {
+        if (code) localStorage.setItem(CARD_STORAGE_KEY, code);
+        else localStorage.removeItem(CARD_STORAGE_KEY);
+    } catch {}
+}
+
+function cardHeaders() {
+    const code = getSavedCardCode();
+    return code ? { 'X-Card-Code': code } : {};
+}
+
+// 根据服务端返回的 billing 信息刷新头部余额展示
+function updateCardBadge(billing) {
+    const badge = document.getElementById('cardBalanceText');
+    if (!badge) return;
+    if (billing && billing.mode === 'card') {
+        badge.textContent = billing.unlimited ? '次数卡：不限次' : `次数卡：剩 ${billing.remaining} 次`;
+    } else if (billing && billing.mode === 'free') {
+        badge.textContent = `免费额度：今日 ${billing.used}/${billing.limit}`;
+    } else if (getSavedCardCode()) {
+        badge.textContent = '次数卡：已绑定';
+    } else {
+        badge.textContent = '次数卡';
+    }
+}
+
+// 付费拦截错误 → 打开次数卡弹窗
+function handleBillingError(error) {
+    if (error && (error.code === 'FREE_LIMIT' || error.code === 'CARD_EMPTY' || error.code === 'CARD_DISABLED' || error.code === 'CARD_INVALID')) {
+        openCardModal(error.message);
+        return true;
+    }
+    return false;
+}
+
+function openCardModal(reasonMessage) {
+    const modal = document.getElementById('cardModal');
+    if (!modal) return;
+    const reason = document.getElementById('cardModalReason');
+    if (reason) {
+        reason.textContent = reasonMessage || '';
+        reason.classList.toggle('hidden', !reasonMessage);
+    }
+    modal.classList.remove('hidden');
+    refreshCardStatus();
+}
+
+function closeCardModal() {
+    document.getElementById('cardModal')?.classList.add('hidden');
+}
+
+async function redeemCard(codeInput) {
+    const response = await fetch(CARD_REDEEM_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codeInput })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+    }
+    return data;
+}
+
+async function refreshCardStatus() {
+    const statusEl = document.getElementById('cardCurrentStatus');
+    const code = getSavedCardCode();
+    if (!statusEl) return;
+    if (!code) {
+        statusEl.textContent = `当前未绑定次数卡。未绑定时每天可免费批改 2 次；${CARD_PURCHASE_GUIDE}`;
+        updateCardBadge(null);
+        return;
+    }
+    statusEl.textContent = '正在查询余额…';
+    try {
+        const data = await redeemCard(code);
+        const card = data.card || {};
+        const masked = `${code.slice(0, 4)}-****-${code.slice(-4)}`;
+        if (!data.ok) {
+            statusEl.textContent = `已绑定卡 ${masked}：${data.message || '不可用'}`;
+            updateCardBadge(null);
+        } else if (card.unlimited) {
+            statusEl.textContent = `已绑定卡 ${masked}：不限次${card.note ? '（' + card.note + '）' : ''}`;
+            updateCardBadge({ mode: 'card', unlimited: true });
+        } else {
+            statusEl.textContent = `已绑定卡 ${masked}：剩余 ${card.remaining}/${card.credits} 次`;
+            updateCardBadge({ mode: 'card', unlimited: false, remaining: card.remaining });
+        }
+    } catch (error) {
+        statusEl.textContent = `余额查询失败：${error.message}`;
+    }
+}
+
+function initCardPanel() {
+    const openBtn = document.getElementById('cardPanelBtn');
+    const closeBtn = document.getElementById('cardModalCloseBtn');
+    const modal = document.getElementById('cardModal');
+    const redeemBtn = document.getElementById('cardRedeemBtn');
+    const unbindBtn = document.getElementById('cardUnbindBtn');
+    const input = document.getElementById('cardCodeInput');
+    const guide = document.getElementById('cardPurchaseGuide');
+
+    if (guide) guide.textContent = CARD_PURCHASE_GUIDE;
+    openBtn?.addEventListener('click', () => openCardModal());
+    closeBtn?.addEventListener('click', closeCardModal);
+    modal?.addEventListener('click', (e) => {
+        if (e.target === modal) closeCardModal();
+    });
+
+    redeemBtn?.addEventListener('click', async () => {
+        const raw = (input?.value || '').trim();
+        if (!raw) {
+            showToast('请输入卡密', 'error');
+            return;
+        }
+        redeemBtn.disabled = true;
+        try {
+            const data = await redeemCard(raw);
+            if (!data.ok) {
+                showToast(data.message || '卡密不可用', 'error');
+                return;
+            }
+            saveCardCode(data.card.code);
+            if (input) input.value = '';
+            showToast('卡密绑定成功', 'success');
+            refreshCardStatus();
+        } catch (error) {
+            showToast('兑换失败: ' + error.message, 'error');
+        } finally {
+            redeemBtn.disabled = false;
+        }
+    });
+
+    unbindBtn?.addEventListener('click', () => {
+        saveCardCode('');
+        showToast('已解除绑定', 'success');
+        refreshCardStatus();
+    });
+
+    if (getSavedCardCode()) {
+        refreshCardStatus();
+    } else {
+        updateCardBadge(null);
+    }
+}
 // 应用文批改提示词（满分15分，字数80词左右）
 const APPLICATION_GRADING_PROMPT = `你是一名精通中国高考英语应用文写作指导的老师，具备强大的逻辑分析和语言润色能力。
 
@@ -265,6 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initApp() {
     initStudentExperience();
+    initCardPanel();
 }
 
 // ========================================
@@ -1479,12 +1639,16 @@ async function callVisionOCR(file, model = 'gemini-3.5-flash') {
 
     const response = await fetch(OCR_ENDPOINT, {
         method: 'POST',
+        headers: cardHeaders(),
         body: formData
     });
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`);
+        const error = new Error(data.error || `HTTP ${response.status}`);
+        error.code = data.code;
+        handleBillingError(error);
+        throw error;
     }
 
     return {
@@ -1546,28 +1710,37 @@ async function callJsonCompletion(prompt, model, maxTokens) {
             content: prompt
         }],
         maxTokens,
-        temperature: 0.1
+        temperature: 0.1,
+        purpose: 'split'
     });
     return parseJsonObject(content);
 }
 
-async function callTextCompletion({ model, messages, maxTokens, temperature = 0.7 }) {
+async function callTextCompletion({ model, messages, maxTokens, temperature = 0.7, purpose = 'grade' }) {
     const response = await fetch(TEXT_MODEL_ENDPOINT, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...cardHeaders()
         },
         body: JSON.stringify({
             model,
             messages,
             max_tokens: maxTokens,
-            temperature
+            temperature,
+            purpose
         })
     });
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`);
+        const error = new Error(data.error || `HTTP ${response.status}`);
+        error.code = data.code;
+        handleBillingError(error);
+        throw error;
+    }
+    if (data.billing) {
+        updateCardBadge(data.billing);
     }
 
     const content = data.content || data.choices?.[0]?.message?.content || '';
@@ -1605,7 +1778,8 @@ async function gradeEssay(topic, essay, model) {
             content: prompt
         }],
         maxTokens: 4000,
-        temperature: 0.7
+        temperature: 0.7,
+        purpose: 'grade'
     });
 }
 
@@ -1620,7 +1794,8 @@ async function getWritingGuidance(topic, model) {
             content: prompt
         }],
         maxTokens: 3000,
-        temperature: 0.7
+        temperature: 0.7,
+        purpose: 'guidance'
     });
 }
 
@@ -1633,6 +1808,7 @@ async function gradeContinuation(topic, original, content, model) {
 
     return callTextCompletion({
         model,
+        purpose: 'grade',
         messages: [{
             role: "user",
             content: prompt
@@ -1650,12 +1826,14 @@ async function getContinuationGuidance(topic, original, model) {
 
     return callTextCompletion({
         model,
+        purpose: 'guidance',
         messages: [{
             role: "user",
             content: prompt
         }],
         maxTokens: 3000,
-        temperature: 0.7
+        temperature: 0.7,
+        purpose: 'guidance'
     });
 }
 
@@ -1807,7 +1985,8 @@ async function splitTaggedOcrText(rawText, roles, roleOptions, model) {
     const response = await fetch(OCR_ENDPOINT, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...cardHeaders()
         },
         body: JSON.stringify({
             action: 'split_ocr_text',
@@ -1819,7 +1998,10 @@ async function splitTaggedOcrText(rawText, roles, roleOptions, model) {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`);
+        const error = new Error(data.error || `HTTP ${response.status}`);
+        error.code = data.code;
+        handleBillingError(error);
+        throw error;
     }
 
     return parseJsonObject(data.content || '');

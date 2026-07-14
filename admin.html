@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>次数卡后台 · 粉彩作文小助手</title>
+<style>
+:root {
+    --ink: #2f4156;
+    --paper: #fdf9f0;
+    --surface: #ffffff;
+    --tint: #f3fbff;
+    --warm: #fff8de;
+    --accent: #e56a54;
+    --ok: #2e8b57;
+    --line: #e3ddcf;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 24px;
+}
+h1 { font-size: 1.4rem; margin: 0 0 16px; }
+h2 { font-size: 1.05rem; margin: 0 0 10px; }
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    max-width: 1100px;
+}
+label { font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
+input, select, button {
+    font: inherit;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: inherit;
+}
+button { cursor: pointer; background: var(--tint); }
+button.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+button.danger { background: #fbeaea; color: #a33; border-color: #e5c4c4; }
+button:disabled { opacity: 0.5; cursor: wait; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; white-space: nowrap; }
+tr.disabled td { opacity: 0.45; text-decoration: line-through; }
+.mono { font-family: Consolas, monospace; }
+.muted { color: #7a8aa0; font-size: 0.8rem; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.msg { margin-left: 10px; font-size: 0.85rem; }
+.msg.ok { color: var(--ok); }
+.msg.err { color: #a33; }
+textarea.codes { width: 100%; height: 120px; font-family: Consolas, monospace; margin-top: 10px; }
+.stat-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.stat-tile { background: var(--warm); border-radius: 10px; padding: 10px 14px; min-width: 110px; }
+.stat-tile b { display: block; font-size: 1.3rem; }
+.tablewrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>🎫 次数卡后台</h1>
+
+<div class="panel">
+    <div class="row">
+        <label>管理密码 <input id="secretInput" type="password" placeholder="ADMIN_SECRET" size="24"></label>
+        <button class="primary" id="loginBtn">连接</button>
+        <span class="msg" id="loginMsg"></span>
+    </div>
+    <p class="muted">密码即 Netlify 环境变量 ADMIN_SECRET，只保存在本浏览器（localStorage）。</p>
+</div>
+
+<div class="panel">
+    <h2>📊 最近用量（今日在最上）</h2>
+    <div class="stat-grid" id="todayTiles"></div>
+    <div class="tablewrap"><table id="statsTable"></table></div>
+</div>
+
+<div class="panel">
+    <h2>➕ 生成卡密</h2>
+    <div class="row">
+        <label>数量 <input id="createCount" type="number" value="10" min="1" max="200" style="width:70px"></label>
+        <label>次数 <input id="createCredits" type="number" value="10" min="1" style="width:80px"></label>
+        <label><input id="createUnlimited" type="checkbox"> 不限次</label>
+        <label>类型
+            <select id="createType">
+                <option value="paid">付费（闲鱼）</option>
+                <option value="class">班级共享</option>
+                <option value="student">家教学生</option>
+                <option value="admin">自用</option>
+            </select>
+        </label>
+        <label>备注 <input id="createNote" type="text" placeholder="如：闲鱼10次卡 / 高三1班" size="18"></label>
+        <button class="primary" id="createBtn">生成</button>
+        <span class="msg" id="createMsg"></span>
+    </div>
+    <textarea class="codes" id="createResult" placeholder="生成的卡密会出现在这里，一行一个，可直接粘贴进闲鱼自动发货库存" readonly></textarea>
+    <div class="row" style="margin-top:8px">
+        <button id="copyCodesBtn">复制全部</button>
+        <button id="downloadCodesBtn">下载 txt（闲鱼库存用）</button>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>🗂 卡密列表</h2>
+    <div class="row" style="margin-bottom:10px">
+        <button id="refreshBtn">刷新</button>
+        <label>筛选类型
+            <select id="filterType">
+                <option value="">全部</option>
+                <option value="paid">付费</option>
+                <option value="class">班级</option>
+                <option value="student">家教学生</option>
+                <option value="admin">自用</option>
+            </select>
+        </label>
+        <span class="msg" id="listMsg"></span>
+    </div>
+    <div class="tablewrap"><table id="cardsTable"></table></div>
+</div>
+
+<script>
+const ENDPOINT = '/.netlify/functions/admin-cards';
+const SECRET_KEY = 'smart-doc-helper:admin-secret';
+let allCards = [];
+
+const $ = (id) => document.getElementById(id);
+
+function secret() { return localStorage.getItem(SECRET_KEY) || ''; }
+
+async function api(payload) {
+    const res = await fetch(ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + secret()
+        },
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+}
+
+function setMsg(id, text, ok) {
+    const el = $(id);
+    el.textContent = text;
+    el.className = 'msg ' + (ok ? 'ok' : 'err');
+    if (ok) setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+$('loginBtn').addEventListener('click', async () => {
+    localStorage.setItem(SECRET_KEY, $('secretInput').value.trim());
+    try {
+        await api({ action: 'stats', days: 1 });
+        setMsg('loginMsg', '连接成功 ✓', true);
+        loadAll();
+    } catch (e) {
+        setMsg('loginMsg', '连接失败：' + e.message, false);
+    }
+});
+
+async function loadStats() {
+    const { days } = await api({ action: 'stats', days: 14 });
+    const today = days[0] || {};
+    const tiles = [
+        ['卡批改', (today['card-grade'] || 0) + (today['card-guidance'] || 0)],
+        ['免费批改', (today['free-grade'] || 0) + (today['free-guidance'] || 0)],
+        ['OCR', today.ocr || 0]
+    ];
+    $('todayTiles').innerHTML = tiles.map(([k, v]) => `<div class="stat-tile"><b>${v}</b>今日${k}</div>`).join('');
+    const fields = ['card-grade', 'card-guidance', 'free-grade', 'free-guidance', 'ocr'];
+    const header = '<tr><th>日期</th>' + fields.map(f => `<th>${f}</th>`).join('') + '</tr>';
+    const rows = days.map(d => '<tr><td>' + d.day + '</td>' + fields.map(f => `<td>${d[f] || 0}</td>`).join('') + '</tr>').join('');
+    $('statsTable').innerHTML = header + rows;
+}
+
+async function loadCards() {
+    $('listMsg').textContent = '加载中…';
+    const { cards, total } = await api({ action: 'list' });
+    allCards = cards;
+    $('listMsg').textContent = '';
+    renderCards();
+    setMsg('listMsg', `共 ${total} 张`, true);
+}
+
+function renderCards() {
+    const filter = $('filterType').value;
+    const cards = filter ? allCards.filter(c => (c.type || 'paid') === filter) : allCards;
+    const typeLabels = { paid: '付费', class: '班级', student: '家教学生', admin: '自用' };
+    const header = '<tr><th>卡密</th><th>类型</th><th>备注</th><th>余额</th><th>已用</th><th>最后使用</th><th>操作</th></tr>';
+    const rows = cards.map(c => {
+        const balance = c.unlimited ? '不限次' : `${c.remaining}/${c.credits}`;
+        const last = c.lastUsedAt ? c.lastUsedAt.slice(0, 16).replace('T', ' ') : '—';
+        return `<tr class="${c.disabled ? 'disabled' : ''}">
+            <td class="mono">${c.code}</td>
+            <td>${typeLabels[c.type] || c.type || ''}</td>
+            <td>${escapeHtml(c.note || '')}</td>
+            <td>${balance}</td>
+            <td>${c.usedCount || 0}</td>
+            <td class="muted">${last}</td>
+            <td>
+                <button onclick="toggleCard('${c.code}', ${!c.disabled})">${c.disabled ? '启用' : '停用'}</button>
+                ${c.unlimited ? '' : `<button onclick="addCredits('${c.code}')">加次数</button>`}
+                <button class="danger" onclick="removeCard('${c.code}')">删除</button>
+            </td>
+        </tr>`;
+    }).join('');
+    $('cardsTable').innerHTML = header + (rows || '<tr><td colspan="7" class="muted">暂无卡密</td></tr>');
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+window.toggleCard = async (code, disabled) => {
+    const card = allCards.find(c => c.code === code);
+    if (disabled && card && !confirm(`确认停用 ${code}${card.note ? '（' + card.note + '）' : ''}？`)) return;
+    await api({ action: 'update', code, disabled });
+    loadCards();
+};
+
+window.addCredits = async (code) => {
+    const n = parseInt(prompt('增加多少次？（可为负数扣减）', '10'), 10);
+    if (!n) return;
+    await api({ action: 'update', code, addCredits: n });
+    loadCards();
+};
+
+window.removeCard = async (code) => {
+    if (!confirm(`确认删除 ${code}？删除后买家将无法使用，慎用；一般用「停用」即可。`)) return;
+    await api({ action: 'delete', code });
+    loadCards();
+};
+
+$('createBtn').addEventListener('click', async () => {
+    const btn = $('createBtn');
+    btn.disabled = true;
+    try {
+        const unlimited = $('createUnlimited').checked;
+        const { cards } = await api({
+            action: 'create',
+            count: Number($('createCount').value),
+            credits: Number($('createCredits').value),
+            unlimited,
+            type: $('createType').value,
+            note: $('createNote').value.trim()
+        });
+        $('createResult').value = cards.map(c => c.code).join('\n');
+        setMsg('createMsg', `已生成 ${cards.length} 张`, true);
+        loadCards();
+    } catch (e) {
+        setMsg('createMsg', e.message, false);
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+$('copyCodesBtn').addEventListener('click', () => {
+    navigator.clipboard.writeText($('createResult').value).then(() => setMsg('createMsg', '已复制', true));
+});
+
+$('downloadCodesBtn').addEventListener('click', () => {
+    const blob = new Blob([$('createResult').value], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '卡密库存_' + new Date().toISOString().slice(0, 10) + '.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+});
+
+$('refreshBtn').addEventListener('click', () => { loadStats(); loadCards(); });
+$('filterType').addEventListener('change', renderCards);
+
+function loadAll() {
+    loadStats().catch(e => setMsg('loginMsg', e.message, false));
+    loadCards().catch(e => setMsg('listMsg', e.message, false));
+}
+
+if (secret()) {
+    $('secretInput').value = secret();
+    loadAll();
+}
+</script>
+</body>
+</html>

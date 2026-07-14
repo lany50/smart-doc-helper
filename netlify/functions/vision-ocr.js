@@ -9,6 +9,20 @@ const ROLE_LABELS = {
     continuation: '续写'
 };
 
+const {
+    getCardsStore,
+    getUsageStore,
+    getCard,
+    checkCard,
+    takeQuota,
+    refundQuota,
+    ipHashOf,
+    bumpStat
+} = require('./shared/card-store.js');
+
+// OCR 不扣次数卡余额，但无卡用户按 IP 限频，防止 API 额度被刷
+const FREE_OCR_PER_DAY = Number(process.env.FREE_OCR_PER_DAY || 15);
+
 exports.handler = async (event) => {
     if (event.httpMethod === 'OPTIONS') {
         return jsonResponse(204, {});
@@ -18,11 +32,32 @@ exports.handler = async (event) => {
         return jsonResponse(405, { error: '只支持 POST 上传文件' });
     }
 
+    let rollbackQuota = null;
+
     try {
         const apiKey = process.env.OCR_API_KEY || process.env.API_KEY;
         if (!apiKey) {
             return jsonResponse(500, { error: '未配置 OCR_API_KEY 或 API_KEY' });
         }
+
+        const cardCode = String(event.headers['x-card-code'] || event.headers['X-Card-Code'] || '').trim();
+        let hasValidCard = false;
+        if (cardCode) {
+            const card = await getCard(await getCardsStore(), cardCode);
+            hasValidCard = !!card && checkCard(card).ok;
+        }
+        if (!hasValidCard) {
+            const usageStore = await getUsageStore();
+            const quota = await takeQuota(usageStore, 'ocr', ipHashOf(event), FREE_OCR_PER_DAY);
+            if (!quota.allowed) {
+                return jsonResponse(429, {
+                    error: `今日免费识别次数（${FREE_OCR_PER_DAY} 次）已用完，输入次数卡后不限次`,
+                    code: 'FREE_LIMIT'
+                });
+            }
+            rollbackQuota = () => refundQuota(usageStore, quota.key);
+        }
+        await bumpStat('ocr');
 
         const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
         if (/application\/json/i.test(contentType)) {
@@ -56,6 +91,7 @@ exports.handler = async (event) => {
             fileName: file.fileName
         });
     } catch (error) {
+        if (rollbackQuota) await rollbackQuota();
         const statusCode = error.statusCode || 500;
         return jsonResponse(statusCode, {
             error: error.message || 'Gemini OCR 解析失败'
@@ -104,7 +140,7 @@ function jsonResponse(statusCode, body) {
             'Content-Type': 'application/json; charset=utf-8',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
+            'Access-Control-Allow-Headers': 'Content-Type, X-Card-Code'
         },
         body: statusCode === 204 ? '' : JSON.stringify(body)
     };
