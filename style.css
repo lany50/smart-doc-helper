@@ -65,6 +65,27 @@
     box-sizing: border-box;
 }
 
+/* 基础重置（原由 Tailwind preflight 提供，CDN 移除后自带） */
+button,
+input,
+textarea,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+button {
+    background: none;
+}
+
+svg {
+    display: block;
+}
+
+img {
+    max-width: 100%;
+}
+
 body {
     font-family: 'Nunito', 'Microsoft YaHei', 'PingFang SC', sans-serif;
     line-height: 1.7;

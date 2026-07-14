@@ -11,7 +11,6 @@
 [在线体验](https://your-site.netlify.app) · [功能演示](#-功能演示) · [快速开始](#-快速开始) · [部署指南](#-部署指南)
 
 <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" />
-<img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" />
 <img src="https://img.shields.io/badge/Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white" />
 
 </div>
@@ -63,7 +62,7 @@
 ### 🎨 其他特性
 
 - 📱 **响应式设计** - 完美支持手机、平板、电脑
-- 🎨 **优雅界面** - 基于 Tailwind CSS 的现代设计
+- 🎨 **优雅界面** - 自研粉彩课堂设计系统（design token + 贴纸视觉语言）
 - 🚀 **极速部署** - 支持 Netlify、Vercel、GitHub Pages
 - 🔐 **环境变量** - 支持安全的 API 密钥配置
 - 📝 **完整文档** - 详细的使用和部署说明
@@ -410,7 +409,7 @@ OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-3.5-f
 ### 前端
 
 - **原生 JavaScript** - 无框架依赖，轻量高效
-- **Tailwind CSS** - 现代化 UI 设计
+- **原生 CSS 设计系统** - design token 驱动，日/夜双主题
 - **Google Fonts** - Crimson Pro + Inter 字体
 
 ### AI 模型
@@ -540,7 +539,6 @@ in the Software without restriction...
 
 ### 技术支持
 
-- [Tailwind CSS](https://tailwindcss.com/) - CSS 框架
 - [Google Fonts](https://fonts.google.com/) - 字体服务
 - [Netlify](https://www.netlify.com/) - 部署平台
 
