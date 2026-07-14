@@ -1902,10 +1902,33 @@ function downloadTextFile(text, filename) {
     URL.revokeObjectURL(url);
 }
 
+function iconHtml(name) {
+    return `<svg class="icon" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
+}
+
+// 动态卡片标题的 emoji 前缀 → 图标映射；未命中时按纯文本渲染
+const HEADING_ICONS = [
+    ['🧭', 'compass'], ['🔎', 'search'], ['📍', 'map-pin'], ['✅', 'check-circle'],
+    ['✨', 'sparkles'], ['⚠️', 'alert-triangle'], ['💡', 'lightbulb'], ['📖', 'book-open'],
+    ['🎯', 'target'], ['✍️', 'pencil'], ['📊', 'chart'], ['📋', 'clipboard']
+];
+
+function renderIconHeading(heading, title) {
+    const entry = HEADING_ICONS.find(([emoji]) => title.startsWith(emoji));
+    if (!entry) {
+        heading.textContent = title;
+        return;
+    }
+    // 图标是固定字符串走 innerHTML；标题文字必须走 textNode，防止注入
+    heading.innerHTML = iconHtml(entry[1]);
+    heading.append(document.createTextNode(' ' + title.slice(entry[0].length).trim()));
+}
+
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = type === 'success' ? 'success-toast' : 'error-toast';
-    toast.textContent = message;
+    toast.innerHTML = iconHtml(type === 'success' ? 'check-circle' : 'alert-triangle');
+    toast.append(document.createTextNode(message));
     document.body.appendChild(toast);
 
     setTimeout(() => {
@@ -1968,7 +1991,7 @@ function initThemeToggle() {
         const isNight = theme === 'night';
         document.body.classList.toggle('night-mode', isNight);
         button.setAttribute('aria-pressed', String(isNight));
-        button.textContent = isNight ? '☀️ 日间模式' : '🌙 夜间模式';
+        button.innerHTML = isNight ? `${iconHtml('sun')} 日间模式` : `${iconHtml('moon')} 夜间模式`;
         button.title = isNight ? '切换到日间模式' : '切换到夜间模式';
         // 只有学生手动切换才持久化；未手动设置时始终跟随系统
         if (persist) {
@@ -2268,7 +2291,7 @@ function renderGradeResult(composer, data, ref) {
 
 function appendTextCard(parent, title, content, fallback = '', extraClass = '') {
     const card = document.createElement('section'); card.className = `grading-card ${extraClass}`.trim();
-    const heading = document.createElement('h4'); heading.textContent = title; card.append(heading);
+    const heading = document.createElement('h4'); renderIconHeading(heading, title); card.append(heading);
     const body = document.createElement('div'); body.className = 'content';
     if (Array.isArray(content)) {
         const list = document.createElement('ul'); (content.length ? content : [fallback]).forEach(item => { const line = document.createElement('li'); line.textContent = item; list.append(line); }); body.append(list);
@@ -2278,7 +2301,7 @@ function appendTextCard(parent, title, content, fallback = '', extraClass = '') 
 
 function appendRevisionTasks(parent, tasks, ref) {
     const card = document.createElement('section'); card.className = 'grading-card revision-task-card';
-    const heading = document.createElement('h4'); heading.textContent = '✍️ 优先改稿任务'; card.append(heading);
+    const heading = document.createElement('h4'); renderIconHeading(heading, '✍️ 优先改稿任务'); card.append(heading);
     tasks.forEach((task, index) => {
         const item = document.createElement('label'); item.className = 'revision-task';
         const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = task.completed; checkbox.addEventListener('change', () => { task.completed = checkbox.checked; updateHistoryTask(ref, index, checkbox.checked); });

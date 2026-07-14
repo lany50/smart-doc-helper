@@ -17,6 +17,32 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- SVG 图标库（Lucide 风格描边图标） -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+        <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+        <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+        <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+        <symbol id="i-keyboard" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M6 9h.01"/><path d="M10 9h.01"/><path d="M14 9h.01"/><path d="M18 9h.01"/><path d="M6 12h.01"/><path d="M18 12h.01"/><path d="M8 15h8"/></symbol>
+        <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></symbol>
+        <symbol id="i-book-open" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+        <symbol id="i-clipboard" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></symbol>
+        <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></symbol>
+        <symbol id="i-lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></symbol>
+        <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+        <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></symbol>
+        <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+        <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+        <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3 1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3Z"/></symbol>
+        <symbol id="i-alert-triangle" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+        <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+        <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></symbol>
+        <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    </svg>
     <div id="legacyApp">
     <!-- 装饰性背景 -->
     <div class="classroom-backdrop" aria-hidden="true"></div>
@@ -35,10 +61,10 @@
                 </div>
                 <div class="student-header-actions">
                     <button id="themeToggleBtn" class="student-theme-toggle" type="button" aria-pressed="false" title="切换夜间模式">
-                        🌙 夜间模式
+                        <svg class="icon"><use href="#i-moon"></use></svg> 夜间模式
                     </button>
                     <button id="historyToggleBtn" class="student-history-toggle" type="button" aria-controls="learningHistoryDrawer" aria-expanded="false">
-                        📚 学习记录
+                        <svg class="icon"><use href="#i-history"></use></svg> 学习记录
                     </button>
                 </div>
             </div>
@@ -61,8 +87,8 @@
                     <span>选择输入方式，确认文字，再获得你的改稿任务。</span>
                 </div>
                 <div class="student-input-actions" role="group" aria-label="选择输入方式">
-                    <button type="button" class="student-input-choice is-active" data-input-mode="upload">📸 上传作业照片</button>
-                    <button type="button" class="student-input-choice" data-input-mode="paste">⌨️ 直接粘贴作文</button>
+                    <button type="button" class="student-input-choice is-active" data-input-mode="upload"><svg class="icon"><use href="#i-camera"></use></svg> 上传作业照片</button>
+                    <button type="button" class="student-input-choice" data-input-mode="paste"><svg class="icon"><use href="#i-keyboard"></use></svg> 直接粘贴作文</button>
                 </div>
                 <ol class="student-steps">
                     <li><b>1</b> 选择题型和输入方式</li>
@@ -74,10 +100,10 @@
             <!-- 作文类型选择 -->
             <div class="flex justify-center gap-4 mb-8">
                 <button id="applicationBtn" class="essay-type-tab active px-6 py-3 rounded-xl font-medium transition-all duration-300">
-                    📝 应用文写作 (15分)
+                    <svg class="icon"><use href="#i-file-text"></use></svg> 应用文写作 (15分)
                 </button>
                 <button id="continuationBtn" class="essay-type-tab px-6 py-3 rounded-xl font-medium transition-all duration-300">
-                    📖 读后续写 (25分)
+                    <svg class="icon"><use href="#i-book-open"></use></svg> 读后续写 (25分)
                 </button>
             </div>
 
@@ -87,7 +113,7 @@
                     <!-- 左侧：OCR区 -->
                     <div class="card p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
-                            <h3 class="card-title">📸 OCR识别区</h3>
+                            <h3 class="card-title"><svg class="icon"><use href="#i-camera"></use></svg> OCR识别区</h3>
                             <select id="essayOcrModel" class="field px-3 py-1" disabled>
                                 <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
                             </select>
@@ -98,12 +124,12 @@
                             <svg class="dropzone-icon w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                             </svg>
-                            <p class="text-sm mb-2">📸 上传题目和作文图片（支持多张）</p>
+                            <p class="text-sm mb-2"><svg class="icon"><use href="#i-camera"></use></svg> 上传题目和作文图片（支持多张）</p>
                             <input type="file" id="essayFileInput" class="hidden" accept=".pdf,image/*" multiple>
                             <button id="essaySelectBtn" class="btn btn-primary px-4 py-2 rounded-full text-sm">
                                 选择文件
                             </button>
-                            <p class="text-xs text-muted mt-2">💡 上传后先给每张图标记“题目”或“作文”</p>
+                            <p class="text-xs text-muted mt-2"><svg class="icon"><use href="#i-lightbulb"></use></svg> 上传后先给每张图标记“题目”或“作文”</p>
                         </div>
 
                         <!-- 图片预览列表 -->
@@ -113,7 +139,7 @@
 
                         <!-- 识别按钮 -->
                         <button id="startOcrBtn" class="btn btn-primary hidden w-full py-2 text-sm mb-4 flex-shrink-0">
-                            🔍 开始识别全部图片
+                            <svg class="icon"><use href="#i-search"></use></svg> 开始识别全部图片
                         </button>
 
                         <!-- 进度 -->
@@ -135,16 +161,16 @@
                             <div class="ocr-split-grid flex-1 min-h-0 mb-3">
                                 <div class="ocr-edit-field">
                                     <div class="flex items-center justify-between mb-2 flex-shrink-0">
-                                        <label class="text-sm font-medium">📌 题目要求</label>
+                                        <label class="text-sm font-medium"><svg class="icon"><use href="#i-clipboard"></use></svg> 题目要求</label>
                                     </div>
                                     <textarea id="essayOcrTopic" class="field ocr-textarea ocr-topic-textarea" placeholder="系统会把标记为题目的 OCR 结果放到这里，可手动编辑..."></textarea>
                                 </div>
 
                                 <div class="ocr-edit-field">
                                     <div class="flex items-center justify-between mb-2 flex-shrink-0">
-                                        <label class="text-sm font-medium">✍️ 学生作文</label>
+                                        <label class="text-sm font-medium"><svg class="icon"><use href="#i-pencil"></use></svg> 学生作文</label>
                                         <button id="copyAllBtn" class="btn btn-primary text-xs px-2 py-1">
-                                            📋 复制作文
+                                            <svg class="icon"><use href="#i-copy"></use></svg> 复制作文
                                         </button>
                                     </div>
                                     <textarea id="essayContent" class="field ocr-textarea ocr-essay-textarea" placeholder="系统会把标记为作文的 OCR 结果放到这里，可手动编辑..."></textarea>
@@ -162,7 +188,7 @@
 
                             <div class="ocr-action-bar">
                                 <button id="sendToGradeBtn" class="btn btn-primary flex-1 py-3" disabled>
-                                    ➡️ 同步到批改区
+                                    <svg class="icon"><use href="#i-arrow-right"></use></svg> 同步到批改区
                                 </button>
                                 <button id="clearEssayBtn" class="btn btn-ghost px-4 py-3 text-sm">
                                     清空
@@ -176,7 +202,7 @@
                     <!-- 右侧：批改区 -->
                     <div class="card p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
-                            <h3 class="card-title">🤖 AI批改区</h3>
+                            <h3 class="card-title"><svg class="icon"><use href="#i-bot"></use></svg> AI批改区</h3>
                             <select id="gradingModel" class="field px-3 py-1">
                                 <option value="deepseek-v4-flash">deepseek-v4-flash</option>
                                 <option value="tencent/hy3:free">tencent/hy3:free</option>
@@ -186,12 +212,12 @@
                         <!-- 批改输入区 -->
                         <div id="gradingInput" class="flex-1 flex flex-col min-h-0">
                             <div class="mb-3 flex-shrink-0">
-                                <label class="text-sm font-medium mb-2 block">📋 题目要求</label>
+                                <label class="text-sm font-medium mb-2 block"><svg class="icon"><use href="#i-clipboard"></use></svg> 题目要求</label>
                                 <textarea id="gradingTopic" class="field w-full px-3 py-2 resize-none" rows="4" placeholder="粘贴题目要求..."></textarea>
                             </div>
 
                             <div class="mb-3 flex-1 flex flex-col min-h-0">
-                                <label class="text-sm font-medium mb-2 block flex-shrink-0">✍️ 学生作文</label>
+                                <label class="text-sm font-medium mb-2 block flex-shrink-0"><svg class="icon"><use href="#i-pencil"></use></svg> 学生作文</label>
                                 <textarea id="gradingEssay" class="field flex-1 w-full px-3 py-2 resize-none min-h-0" placeholder="粘贴作文内容...（留空可获取写作思路）"></textarea>
                                 <div class="flex justify-between items-center mt-1 flex-shrink-0">
                                     <span class="text-xs text-muted">字数: <span id="gradingWordCount">0</span> 词</span>
@@ -202,10 +228,10 @@
                             <!-- 按钮组 -->
                             <div class="btn-row flex-shrink-0">
                                 <button id="getGuidanceBtn" class="btn btn-accent flex-1 py-3 text-sm" disabled>
-                                    💡 获取写作思路
+                                    <svg class="icon"><use href="#i-lightbulb"></use></svg> 获取写作思路
                                 </button>
                                 <button id="startGradingBtn" class="btn btn-primary flex-1 py-3 text-sm" disabled>
-                                    🤖 批改作文
+                                    <svg class="icon"><use href="#i-bot"></use></svg> 批改作文
                                 </button>
                             </div>
                         </div>
@@ -225,16 +251,16 @@
                         <!-- 批改结果 -->
                         <div id="gradingResult" class="hidden flex-1 flex flex-col min-h-0">
                             <div class="mb-4 flex justify-between items-center flex-shrink-0">
-                                <h4 class="text-md">📊 批改报告</h4>
+                                <h4 class="text-md"><svg class="icon"><use href="#i-chart"></use></svg> 批改报告</h4>
                                 <div class="btn-row">
                                     <button id="copyResultBtn" class="btn btn-primary px-3 py-1.5 text-xs">
-                                        📋 复制
+                                        <svg class="icon"><use href="#i-copy"></use></svg> 复制
                                     </button>
                                     <button id="downloadResultBtn" class="btn btn-ghost px-3 py-1.5 text-xs">
-                                        📥 下载
+                                        <svg class="icon"><use href="#i-download"></use></svg> 下载
                                     </button>
                                     <button id="newGradingBtn" class="btn btn-soft px-3 py-1.5 text-xs">
-                                        🔄 新作文
+                                        <svg class="icon"><use href="#i-refresh"></use></svg> 新作文
                                     </button>
                                 </div>
                             </div>
@@ -279,16 +305,16 @@
                         <!-- 写作思路结果 -->
                         <div id="guidanceResult" class="hidden flex-1 flex flex-col min-h-0">
                             <div class="mb-4 flex justify-between items-center flex-shrink-0">
-                                <h4 class="text-md">💡 写作思路指导</h4>
+                                <h4 class="text-md"><svg class="icon"><use href="#i-lightbulb"></use></svg> 写作思路指导</h4>
                                 <div class="btn-row">
                                     <button id="copyGuidanceBtn" class="btn btn-accent px-3 py-1.5 text-xs">
-                                        📋 复制
+                                        <svg class="icon"><use href="#i-copy"></use></svg> 复制
                                     </button>
                                     <button id="downloadGuidanceBtn" class="btn btn-ghost px-3 py-1.5 text-xs">
-                                        📥 下载
+                                        <svg class="icon"><use href="#i-download"></use></svg> 下载
                                     </button>
                                     <button id="newGuidanceBtn" class="btn btn-soft px-3 py-1.5 text-xs">
-                                        🔄 新题目
+                                        <svg class="icon"><use href="#i-refresh"></use></svg> 新题目
                                     </button>
                                 </div>
                             </div>
@@ -307,7 +333,7 @@
                     <!-- 左侧：OCR区 -->
                     <div class="card p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
-                            <h3 class="card-title">📸 OCR识别区</h3>
+                            <h3 class="card-title"><svg class="icon"><use href="#i-camera"></use></svg> OCR识别区</h3>
                             <select id="continuationOcrModel" class="field px-3 py-1" disabled>
                                 <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
                             </select>
@@ -318,12 +344,12 @@
                             <svg class="dropzone-icon w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                             </svg>
-                            <p class="text-sm mb-2">📸 上传题目、原文和续写图片</p>
+                            <p class="text-sm mb-2"><svg class="icon"><use href="#i-camera"></use></svg> 上传题目、原文和续写图片</p>
                             <input type="file" id="continuationFileInput" class="hidden" accept=".pdf,image/*" multiple>
                             <button id="continuationSelectBtn" class="btn btn-primary px-4 py-2 rounded-full text-sm">
                                 选择文件
                             </button>
-                            <p class="text-xs text-muted mt-2">💡 上传后给每张图标记“题目”“原文”或“续写”</p>
+                            <p class="text-xs text-muted mt-2"><svg class="icon"><use href="#i-lightbulb"></use></svg> 上传后给每张图标记“题目”“原文”或“续写”</p>
                         </div>
 
                         <!-- 图片预览列表 -->
@@ -333,7 +359,7 @@
 
                         <!-- 识别按钮 -->
                         <button id="startContinuationOcrBtn" class="btn btn-primary hidden w-full py-2 text-sm mb-4 flex-shrink-0">
-                            🔍 开始识别全部图片
+                            <svg class="icon"><use href="#i-search"></use></svg> 开始识别全部图片
                         </button>
 
                         <!-- 进度 -->
@@ -356,9 +382,9 @@
                                 <!-- 题目 -->
                                 <div class="flex-1 flex flex-col min-h-0">
                                     <div class="flex items-center justify-between mb-2 flex-shrink-0">
-                                        <label class="text-sm font-medium">📋 题目要求</label>
+                                        <label class="text-sm font-medium"><svg class="icon"><use href="#i-clipboard"></use></svg> 题目要求</label>
                                         <button class="btn-link text-xs px-2 py-1 copy-topic-btn">
-                                            📋 复制
+                                            <svg class="icon"><use href="#i-copy"></use></svg> 复制
                                         </button>
                                     </div>
                                     <textarea id="continuationTopic" class="field ocr-textarea continuation-topic-textarea" placeholder="题目要求..."></textarea>
@@ -367,9 +393,9 @@
                                 <!-- 原文 -->
                                 <div class="flex-1 flex flex-col min-h-0">
                                     <div class="flex items-center justify-between mb-2 flex-shrink-0">
-                                        <label class="text-sm font-medium">📖 原文内容</label>
+                                        <label class="text-sm font-medium"><svg class="icon"><use href="#i-book-open"></use></svg> 原文内容</label>
                                         <button class="btn-link text-xs px-2 py-1 copy-original-btn">
-                                            📋 复制
+                                            <svg class="icon"><use href="#i-copy"></use></svg> 复制
                                         </button>
                                     </div>
                                     <textarea id="continuationOriginal" class="field ocr-textarea continuation-original-textarea" placeholder="原文内容..."></textarea>
@@ -378,9 +404,9 @@
                                 <!-- 续写 -->
                                 <div class="flex-1 flex flex-col min-h-0">
                                     <div class="flex items-center justify-between mb-2 flex-shrink-0">
-                                        <label class="text-sm font-medium">✍️ 续写内容</label>
+                                        <label class="text-sm font-medium"><svg class="icon"><use href="#i-pencil"></use></svg> 续写内容</label>
                                         <button class="btn-link text-xs px-2 py-1 copy-continuation-btn">
-                                            📋 复制
+                                            <svg class="icon"><use href="#i-copy"></use></svg> 复制
                                         </button>
                                     </div>
                                     <textarea id="continuationContent" class="field ocr-textarea continuation-content-textarea" placeholder="续写内容..."></textarea>
@@ -398,7 +424,7 @@
 
                             <div class="ocr-action-bar mt-3">
                                 <button id="sendToContinuationGradeBtn" class="btn btn-primary flex-1 py-3" disabled>
-                                    ➡️ 同步到批改区
+                                    <svg class="icon"><use href="#i-arrow-right"></use></svg> 同步到批改区
                                 </button>
                                 <button id="clearContinuationOcrBtn" class="btn btn-ghost px-4 py-3 text-sm">
                                     重新上传
@@ -412,7 +438,7 @@
                     <!-- 右侧：批改区 -->
                     <div class="card p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
-                            <h3 class="card-title">🤖 AI批改区</h3>
+                            <h3 class="card-title"><svg class="icon"><use href="#i-bot"></use></svg> AI批改区</h3>
                             <select id="continuationGradingModel" class="field px-3 py-1">
                                 <option value="deepseek-v4-flash">deepseek-v4-flash</option>
                                 <option value="tencent/hy3:free">tencent/hy3:free</option>
@@ -422,17 +448,17 @@
                         <!-- 批改输入区 -->
                         <div id="continuationGradingInput" class="flex-1 flex flex-col min-h-0">
                             <div class="mb-3 flex-shrink-0">
-                                <label class="text-sm font-medium mb-2 block">📋 题目要求</label>
+                                <label class="text-sm font-medium mb-2 block"><svg class="icon"><use href="#i-clipboard"></use></svg> 题目要求</label>
                                 <textarea id="continuationGradingTopic" class="field w-full px-3 py-2 resize-none" rows="3" placeholder="粘贴题目要求..."></textarea>
                             </div>
 
                             <div class="mb-3 flex-shrink-0">
-                                <label class="text-sm font-medium mb-2 block">📖 原文内容</label>
+                                <label class="text-sm font-medium mb-2 block"><svg class="icon"><use href="#i-book-open"></use></svg> 原文内容</label>
                                 <textarea id="continuationGradingOriginal" class="field w-full px-3 py-2 resize-none" rows="3" placeholder="粘贴原文内容..."></textarea>
                             </div>
 
                             <div class="mb-3 flex-1 flex flex-col min-h-0">
-                                <label class="text-sm font-medium mb-2 block flex-shrink-0">✍️ 学生续写</label>
+                                <label class="text-sm font-medium mb-2 block flex-shrink-0"><svg class="icon"><use href="#i-pencil"></use></svg> 学生续写</label>
                                 <textarea id="continuationGradingContent" class="field flex-1 w-full px-3 py-2 resize-none min-h-0" placeholder="粘贴续写内容..."></textarea>
                                 <div class="flex justify-between items-center mt-1 flex-shrink-0">
                                     <span class="text-xs text-muted">字数: <span id="continuationGradingWordCount">0</span> 词</span>
@@ -443,10 +469,10 @@
                             <!-- 按钮组 -->
                             <div class="btn-row flex-shrink-0">
                                 <button id="getContinuationGuidanceBtn" class="btn btn-accent flex-1 py-3 text-sm" disabled>
-                                    💡 获取写作思路
+                                    <svg class="icon"><use href="#i-lightbulb"></use></svg> 获取写作思路
                                 </button>
                                 <button id="startContinuationGradingBtn" class="btn btn-primary flex-1 py-3 text-sm" disabled>
-                                    🤖 批改作文
+                                    <svg class="icon"><use href="#i-bot"></use></svg> 批改作文
                                 </button>
                             </div>
                         </div>
@@ -466,16 +492,16 @@
                         <!-- 批改结果 -->
                         <div id="continuationGradingResult" class="hidden flex-1 flex flex-col min-h-0">
                             <div class="mb-4 flex justify-between items-center flex-shrink-0">
-                                <h4 class="text-md">📊 批改报告</h4>
+                                <h4 class="text-md"><svg class="icon"><use href="#i-chart"></use></svg> 批改报告</h4>
                                 <div class="btn-row">
                                     <button id="copyContinuationResultBtn" class="btn btn-primary px-3 py-1.5 text-xs">
-                                        📋 复制
+                                        <svg class="icon"><use href="#i-copy"></use></svg> 复制
                                     </button>
                                     <button id="downloadContinuationResultBtn" class="btn btn-ghost px-3 py-1.5 text-xs">
-                                        📥 下载
+                                        <svg class="icon"><use href="#i-download"></use></svg> 下载
                                     </button>
                                     <button id="newContinuationGradingBtn" class="btn btn-soft px-3 py-1.5 text-xs">
-                                        🔄 新作文
+                                        <svg class="icon"><use href="#i-refresh"></use></svg> 新作文
                                     </button>
                                 </div>
                             </div>
@@ -523,11 +549,11 @@
 
                         <div id="continuationGuidanceResult" class="hidden flex-1 flex flex-col min-h-0">
                             <div class="mb-4 flex justify-between items-center flex-shrink-0">
-                                <h4 class="text-md">💡 读后续写思路指导</h4>
+                                <h4 class="text-md"><svg class="icon"><use href="#i-lightbulb"></use></svg> 读后续写思路指导</h4>
                                 <div class="btn-row">
-                                    <button id="copyContinuationGuidanceBtn" class="btn btn-accent px-3 py-1.5 text-xs" type="button">📋 复制</button>
-                                    <button id="downloadContinuationGuidanceBtn" class="btn btn-ghost px-3 py-1.5 text-xs" type="button">📥 下载</button>
-                                    <button id="newContinuationGuidanceBtn" class="btn btn-soft px-3 py-1.5 text-xs" type="button">🔄 返回编辑</button>
+                                    <button id="copyContinuationGuidanceBtn" class="btn btn-accent px-3 py-1.5 text-xs" type="button"><svg class="icon"><use href="#i-copy"></use></svg> 复制</button>
+                                    <button id="downloadContinuationGuidanceBtn" class="btn btn-ghost px-3 py-1.5 text-xs" type="button"><svg class="icon"><use href="#i-download"></use></svg> 下载</button>
+                                    <button id="newContinuationGuidanceBtn" class="btn btn-soft px-3 py-1.5 text-xs" type="button"><svg class="icon"><use href="#i-refresh"></use></svg> 返回编辑</button>
                                 </div>
                             </div>
                             <div id="continuationGuidanceContent" class="guidance-panel flex-1 p-6 overflow-y-auto min-h-0"></div>

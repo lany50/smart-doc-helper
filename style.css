@@ -528,24 +528,42 @@ h1, h2, h3, h4,
     position: fixed;
     top: 24px;
     right: 24px;
-    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border: 2px solid;
     border-radius: var(--radius-md);
+    background: var(--surface-strong);
+    color: var(--ink);
     font-size: 14px;
-    font-weight: 500;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    font-weight: 800;
+    box-shadow: 0 4px 0 rgba(47, 65, 86, 0.10), var(--shadow-float);
     z-index: 9999;
     animation: slideIn 0.3s ease-out;
     max-width: 400px;
 }
 
+.success-toast .icon,
+.error-toast .icon {
+    width: 1.35em;
+    height: 1.35em;
+}
+
 .success-toast {
-    background: linear-gradient(135deg, #45ad91 0%, #61b6ff 100%);
-    color: white;
+    border-color: var(--mint-strong);
+}
+
+.success-toast .icon {
+    color: var(--mint-strong);
 }
 
 .error-toast {
-    background: linear-gradient(135deg, #ff8faa 0%, #ffbf69 100%);
-    color: white;
+    border-color: var(--pink);
+}
+
+.error-toast .icon {
+    color: var(--error);
 }
 
 @keyframes slideIn {
@@ -672,6 +690,19 @@ h1, h2, h3, h4,
     color: var(--muted);
 }
 
+.icon {
+    width: 1.1em;
+    height: 1.1em;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: inline-block;
+    vertical-align: -0.18em;
+    flex-shrink: 0;
+}
+
 .brand-badge {
     width: 2.5rem;
     height: 2.5rem;
@@ -690,6 +721,7 @@ h1, h2, h3, h4,
     border: 2px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sticker);
+    transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .card-title {
@@ -781,7 +813,7 @@ h1, h2, h3, h4,
     color: var(--ink);
     font-size: 16px;
     outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.25s ease, color 0.25s ease;
 }
 
 .field:focus {
@@ -892,6 +924,26 @@ select:focus-visible,
 input:focus-visible {
     outline: 2px solid var(--blue-strong);
     outline-offset: 2px;
+}
+
+/* 尊重系统"减少动态效果"设置 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .btn:hover:not(:disabled),
+    .btn:active:not(:disabled),
+    button:active:not(:disabled),
+    .grading-card:hover,
+    .dropzone:hover,
+    .dropzone.dragover {
+        transform: none;
+    }
 }
 
 /* ========================================
@@ -1062,6 +1114,9 @@ body.night-mode {
     --field-bg: #172331;
     --field-border: rgba(132, 187, 230, .38);
     --shadow-float: 0 14px 30px rgba(0, 0, 0, .34);
+    --success: #63c79d;
+    --warn: #f2a35c;
+    --error: #ff9db1;
     color: var(--ink);
     background:
         linear-gradient(90deg, rgba(118, 177, 222, .06) 1px, transparent 1px),
@@ -1086,6 +1141,9 @@ body.night-mode {
 .night-mode .image-preview-item { background: rgba(29, 42, 56, .96); }
 .night-mode .image-preview-item:hover { background: #223447; }
 .night-mode .model-answer-card { border-color: rgba(255, 229, 143, .32); }
+.night-mode .file-preview-pdf { background: #35242a; color: #ff9d9d; }
+.night-mode .image-preview-item .remove-btn { background: #3a2732; border-color: rgba(255, 171, 194, .35); }
+.night-mode .image-preview-item .remove-btn:hover { background: #4a3040; border-color: var(--pink); }
 .night-mode .student-history-toggle,
 .night-mode .student-theme-toggle,
 .night-mode .student-input-choice:not(.is-active),
@@ -1126,6 +1184,12 @@ body.night-mode {
 @media (max-width: 768px) {
     header h1 {
         font-size: 20px;
+    }
+
+    /* 窄屏时品牌与操作按钮允许换行，避免页面横向溢出 */
+    #legacyApp header nav > div {
+        flex-wrap: wrap;
+        row-gap: 10px;
     }
 
     .essay-type-tab {
