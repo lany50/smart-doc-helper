@@ -1,5 +1,6 @@
 // 卡密兑换 / 余额查询
 const {
+    connectBlobs,
     getCardsStore,
     getCard,
     cardPublicView,
@@ -22,6 +23,7 @@ exports.handler = async (event) => {
             return jsonResponse(400, { error: '请求内容不是有效 JSON' });
         }
 
+        connectBlobs(event);
         const store = await getCardsStore();
         const card = await getCard(store, body.code);
         if (!card) {

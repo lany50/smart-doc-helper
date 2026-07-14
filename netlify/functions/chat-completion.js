@@ -3,6 +3,7 @@ const ALLOWED_MODELS = new Set(['deepseek-v4-flash', 'tencent/hy3:free', 'gemini
 const MAX_TOKENS_LIMIT = 6000;
 
 const {
+    connectBlobs,
     getCardsStore,
     getUsageStore,
     getCard,
@@ -51,6 +52,7 @@ exports.handler = async (event) => {
 
         const body = parseBody(event.body);
         validateCompletionRequest(body);
+        connectBlobs(event);
 
         // ---- 计费/限额 ----
         const purpose = BILLED_PURPOSES.has(body.purpose)

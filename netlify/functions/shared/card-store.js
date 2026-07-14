@@ -11,7 +11,23 @@ async function getBlobStore(name) {
     }
     // 静态 require（@netlify/blobs 提供 CJS 构建），保证被函数打包器跟踪收录
     const { getStore } = require('@netlify/blobs');
-    return getStore({ name, consistency: 'strong' });
+    const options = { name, consistency: 'strong' };
+    // 兜底：自动注入失效时可在 Netlify 环境变量手动配 NETLIFY_BLOBS_SITE_ID + NETLIFY_BLOBS_TOKEN
+    if (process.env.NETLIFY_BLOBS_TOKEN) {
+        options.siteID = process.env.NETLIFY_BLOBS_SITE_ID || process.env.SITE_ID || '';
+        options.token = process.env.NETLIFY_BLOBS_TOKEN;
+    }
+    return getStore(options);
+}
+
+// 旧式（v1）函数运行时不会自动注入 Blobs 连接信息，
+// 每个函数入口必须先用 event 里的上下文接线，否则 getStore 会报
+// "The environment has not been configured to use Netlify Blobs"
+function connectBlobs(event) {
+    if (process.env.CARD_STORE_LOCAL_DIR) return;
+    if (!event || !event.blobs) return;
+    const { connectLambda } = require('@netlify/blobs');
+    connectLambda(event);
 }
 
 function createLocalStore(name) {
@@ -171,6 +187,7 @@ function cardPublicView(card) {
 }
 
 module.exports = {
+    connectBlobs,
     getCardsStore,
     getUsageStore,
     getStatsStore,

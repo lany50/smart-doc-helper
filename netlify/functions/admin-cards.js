@@ -1,6 +1,7 @@
 // 后台管理接口：生成/查询/停用卡密、查看用量统计
 // 鉴权：请求头 Authorization: Bearer <ADMIN_SECRET>
 const {
+    connectBlobs,
     getCardsStore,
     getStatsStore,
     generateCode,
@@ -29,6 +30,7 @@ exports.handler = async (event) => {
     }
 
     try {
+        connectBlobs(event);
         const body = parseBody(event.body);
         switch (body.action) {
             case 'create': return await createCards(body);

@@ -10,6 +10,7 @@ const ROLE_LABELS = {
 };
 
 const {
+    connectBlobs,
     getCardsStore,
     getUsageStore,
     getCard,
@@ -40,6 +41,7 @@ exports.handler = async (event) => {
             return jsonResponse(500, { error: '未配置 OCR_API_KEY 或 API_KEY' });
         }
 
+        connectBlobs(event);
         const cardCode = String(event.headers['x-card-code'] || event.headers['X-Card-Code'] || '').trim();
         let hasValidCard = false;
         if (cardCode) {
