@@ -73,9 +73,9 @@
     <main class="relative z-10 px-6 pb-20">
         <!-- 英语作文批改模式 -->
         <section id="essayMode" class="mode-content max-w-7xl mx-auto">
-            <div class="text-center mb-8">
-                <h2 class="text-3xl mb-2">英语作文批改</h2>
-                <p class="text-muted">拍照识别、获得反馈，再完成一次有目标的改稿</p>
+            <div class="hero text-center mb-8">
+                <h2 class="hero-title">英语作文<span class="hero-highlight">批改</span></h2>
+                <p class="hero-sub text-muted">拍照识别、获得反馈，再完成一次有目标的改稿</p>
             </div>
 
             <div class="student-onboarding" aria-label="使用指引">
@@ -108,7 +108,7 @@
             <div id="applicationSection" class="essay-section">
                 <div class="grid md:grid-cols-2 gap-6">
                     <!-- 左侧：OCR区 -->
-                    <div class="card p-6 flex flex-col">
+                    <div class="card card-blue p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
                             <h3 class="card-title"><svg class="icon"><use href="#i-camera"></use></svg> OCR识别区</h3>
                             <select id="essayOcrModel" class="field px-3 py-1" disabled>
@@ -197,7 +197,7 @@
                     </div>
 
                     <!-- 右侧：批改区 -->
-                    <div class="card p-6 flex flex-col">
+                    <div class="card card-mint p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
                             <h3 class="card-title"><svg class="icon"><use href="#i-bot"></use></svg> AI批改区</h3>
                             <select id="gradingModel" class="field px-3 py-1">
@@ -328,7 +328,7 @@
             <div id="continuationSection" class="essay-section hidden">
                 <div class="grid md:grid-cols-2 gap-6">
                     <!-- 左侧：OCR区 -->
-                    <div class="card p-6 flex flex-col">
+                    <div class="card card-blue p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
                             <h3 class="card-title"><svg class="icon"><use href="#i-camera"></use></svg> OCR识别区</h3>
                             <select id="continuationOcrModel" class="field px-3 py-1" disabled>
@@ -433,7 +433,7 @@
                     </div>
 
                     <!-- 右侧：批改区 -->
-                    <div class="card p-6 flex flex-col">
+                    <div class="card card-mint p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
                             <h3 class="card-title"><svg class="icon"><use href="#i-bot"></use></svg> AI批改区</h3>
                             <select id="continuationGradingModel" class="field px-3 py-1">

@@ -91,10 +91,14 @@ body {
     line-height: 1.7;
     color: var(--ink);
     background:
+        radial-gradient(640px 420px at 6% -4%, rgba(140, 200, 255, 0.28), transparent 68%),
+        radial-gradient(720px 480px at 104% 22%, rgba(255, 171, 194, 0.22), transparent 66%),
+        radial-gradient(560px 420px at 50% 108%, rgba(130, 217, 189, 0.20), transparent 70%),
         linear-gradient(90deg, rgba(140, 200, 255, 0.08) 1px, transparent 1px),
         linear-gradient(rgba(130, 217, 189, 0.08) 1px, transparent 1px),
         linear-gradient(135deg, #fffaf0 0%, #f0fbff 46%, #fff5f8 100%);
-    background-size: 36px 36px, 36px 36px, auto;
+    background-size: auto, auto, auto, 36px 36px, 36px 36px, auto;
+    background-attachment: fixed, fixed, fixed, scroll, scroll, scroll;
 }
 
 h1, h2, h3, h4,
@@ -126,11 +130,41 @@ h1, h2, h3, h4,
 }
 
 #legacyApp header nav {
-    padding: 18px;
-    border: 2px solid rgba(255, 229, 143, 0.7);
-    border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, 0.58);
-    box-shadow: 0 10px 24px rgba(79, 158, 232, 0.10);
+    padding: 16px 20px;
+    border: 2px solid rgba(255, 229, 143, 0.8);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 5px 0 rgba(255, 213, 92, 0.28), 0 14px 30px rgba(79, 158, 232, 0.10);
+}
+
+/* 品牌名渐变字（text-fill-color 可越过全局标题色的 !important） */
+#legacyApp header h1 {
+    background: linear-gradient(115deg, #3f92e0 0%, #45ad91 55%, #e88aa5 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* ========================================
+   Hero 标题区
+======================================== */
+
+.hero-title {
+    font-size: clamp(2.1rem, 4.5vw, 3.1rem);
+    line-height: 1.25;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.35rem;
+}
+
+.hero-highlight {
+    background: linear-gradient(transparent 58%, var(--yellow) 58%, var(--yellow) 94%, transparent 94%);
+    padding: 0 0.12em;
+    border-radius: 4px;
+}
+
+.hero-sub {
+    font-size: 1.05rem;
 }
 
 /* ========================================
@@ -138,11 +172,13 @@ h1, h2, h3, h4,
 ======================================== */
 
 #legacyApp .essay-type-tab {
-    min-height: 52px;
+    min-height: 56px;
+    font-size: 16px;
     border: 2px solid rgba(140, 200, 255, 0.36);
     background: var(--surface-strong);
     color: var(--ink);
     box-shadow: 0 4px 0 rgba(79, 158, 232, 0.18);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 #legacyApp .essay-type-tab:hover:not(:disabled) {
@@ -154,7 +190,16 @@ h1, h2, h3, h4,
     background: var(--grad-primary) !important;
     color: #fff !important;
     border-color: rgba(79, 158, 232, 0.4) !important;
-    box-shadow: 0 5px 0 rgba(69, 173, 145, 0.28);
+    box-shadow: 0 6px 0 rgba(69, 173, 145, 0.32);
+    transform: translateY(-2px);
+}
+
+/* 读后续写用暖色身份，与应用文的蓝薄荷区分（暖底上文字固定深色，夜间也不变） */
+#legacyApp #continuationBtn.active {
+    background: var(--grad-warm) !important;
+    color: #2f4156 !important;
+    border-color: rgba(255, 171, 194, 0.55) !important;
+    box-shadow: 0 6px 0 rgba(230, 148, 120, 0.32);
 }
 
 /* ========================================
@@ -650,7 +695,7 @@ h1, h2, h3, h4,
 .student-input-choice.is-active { background: #387eae; color: #fff; border-color: #387eae; }
 .student-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 13px; }
 .student-steps li { display: flex; align-items: center; gap: 7px; }
-.student-steps b { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #dff3ff; color: #28749e; }
+.student-steps b { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--grad-primary); color: #fff; box-shadow: 0 2px 0 rgba(69, 173, 145, 0.3); }
 
 .student-file-item { display: grid; grid-template-columns: 58px minmax(105px, 1fr) minmax(120px, auto) auto; gap: 10px; align-items: center; padding: 9px; border: 1px solid rgba(140, 200, 255, .38); border-radius: 12px; background: rgba(255,255,255,.82); }
 .student-file-preview { width: 58px; height: 54px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #edf8ff; font-size: 11px; font-weight: 800; }
@@ -745,8 +790,40 @@ h1, h2, h3, h4,
     transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
+/* 功能区色彩身份：OCR 蓝 / AI 批改薄荷 */
+.card-blue {
+    border-color: rgba(79, 158, 232, 0.45);
+    border-top: 6px solid var(--blue-strong);
+    box-shadow: 0 6px 0 rgba(79, 158, 232, 0.18);
+}
+
+.card-mint {
+    border-color: rgba(69, 173, 145, 0.45);
+    border-top: 6px solid var(--mint-strong);
+    box-shadow: 0 6px 0 rgba(69, 173, 145, 0.18);
+}
+
 .card-title {
-    font-size: 1.125rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.15rem;
+}
+
+/* 卡片标题图标 → 贴纸徽章 */
+.card-title .icon {
+    width: 2em;
+    height: 2em;
+    padding: 0.42em;
+    border-radius: var(--radius-sm);
+    background: var(--surface-tint);
+    color: var(--blue-strong);
+    box-shadow: 0 2px 0 rgba(79, 158, 232, 0.18);
+}
+
+.card-mint .card-title .icon {
+    color: var(--mint-strong);
+    box-shadow: 0 2px 0 rgba(69, 173, 145, 0.2);
 }
 
 .btn {
@@ -859,9 +936,20 @@ h1, h2, h3, h4,
     transform: translateY(-1px);
 }
 
-.dropzone-icon {
+.dropzone .dropzone-icon {
+    width: 68px;
+    height: 68px;
+    padding: 16px;
+    border-radius: var(--radius-full);
+    background: var(--surface-strong);
     color: var(--mint-strong);
-    opacity: 0.7;
+    box-shadow: 0 4px 0 rgba(130, 217, 189, 0.3);
+    transition: transform 0.25s ease;
+}
+
+.dropzone:hover .dropzone-icon,
+.dropzone.dragover .dropzone-icon {
+    transform: translateY(-4px) rotate(-4deg);
 }
 
 .progress-track {
@@ -878,10 +966,30 @@ h1, h2, h3, h4,
 }
 
 .score-card {
+    position: relative;
+    overflow: hidden;
     background: var(--grad-primary);
     color: #fff;
     border-radius: var(--radius-md);
-    box-shadow: 0 4px 0 rgba(69, 173, 145, 0.28);
+    box-shadow: 0 5px 0 rgba(69, 173, 145, 0.32);
+}
+
+.score-card::after {
+    content: "";
+    position: absolute;
+    top: -40%;
+    right: -18%;
+    width: 55%;
+    height: 180%;
+    background: linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.22) 45%, rgba(255, 255, 255, 0.05) 100%);
+    transform: rotate(18deg);
+    pointer-events: none;
+}
+
+.score-card .text-3xl {
+    font-size: 2.6rem;
+    line-height: 1.1;
+    text-shadow: 0 2px 0 rgba(47, 65, 86, 0.14);
 }
 
 .score-list {
@@ -1140,10 +1248,14 @@ body.night-mode {
     --error: #ff9db1;
     color: var(--ink);
     background:
+        radial-gradient(640px 420px at 6% -4%, rgba(79, 158, 232, 0.16), transparent 68%),
+        radial-gradient(720px 480px at 104% 22%, rgba(220, 151, 181, 0.10), transparent 66%),
+        radial-gradient(560px 420px at 50% 108%, rgba(69, 173, 145, 0.12), transparent 70%),
         linear-gradient(90deg, rgba(118, 177, 222, .06) 1px, transparent 1px),
         linear-gradient(rgba(117, 209, 180, .05) 1px, transparent 1px),
         linear-gradient(135deg, #111b27 0%, #152536 50%, #1c2136 100%);
-    background-size: 36px 36px, 36px 36px, auto;
+    background-size: auto, auto, auto, 36px 36px, 36px 36px, auto;
+    background-attachment: fixed, fixed, fixed, scroll, scroll, scroll;
 }
 
 .night-mode .classroom-backdrop {
@@ -1153,7 +1265,9 @@ body.night-mode {
         repeating-linear-gradient(90deg, transparent 0 95px, rgba(220, 151, 181, .08) 96px);
 }
 
-.night-mode #legacyApp header nav { background: rgba(29, 42, 56, .88); border-color: rgba(255, 229, 143, .28); }
+.night-mode #legacyApp header nav { background: rgba(29, 42, 56, .88); border-color: rgba(255, 229, 143, .28); box-shadow: 0 5px 0 rgba(255, 213, 92, .12), 0 14px 30px rgba(0, 0, 0, .3); }
+.night-mode #legacyApp header h1 { background: linear-gradient(115deg, #7cbcf5 0%, #7bd8b8 55%, #ffb3c8 100%); -webkit-background-clip: text; background-clip: text; }
+.night-mode .hero-highlight { background: linear-gradient(transparent 58%, rgba(255, 229, 143, .34) 58%, rgba(255, 229, 143, .34) 94%, transparent 94%); }
 .night-mode .dropzone { background: var(--surface-tint); }
 .night-mode .field::placeholder { color: #90a6bb; }
 .night-mode .ocr-status-note,
