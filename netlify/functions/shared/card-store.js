@@ -5,16 +5,12 @@ const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; // 去掉易混淆的 0
 const CODE_GROUPS = 3;
 const CODE_GROUP_LEN = 4;
 
-let blobsModulePromise = null;
-
 async function getBlobStore(name) {
     if (process.env.CARD_STORE_LOCAL_DIR) {
         return createLocalStore(name);
     }
-    if (!blobsModulePromise) {
-        blobsModulePromise = import('@netlify/blobs');
-    }
-    const { getStore } = await blobsModulePromise;
+    // 静态 require（@netlify/blobs 提供 CJS 构建），保证被函数打包器跟踪收录
+    const { getStore } = require('@netlify/blobs');
     return getStore({ name, consistency: 'strong' });
 }
 

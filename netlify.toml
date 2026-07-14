@@ -4,6 +4,9 @@
   command = "npm run build"
   publish = "."
 
+[functions]
+  node_bundler = "esbuild"
+
 [build.processing]
   skip_processing = false
 

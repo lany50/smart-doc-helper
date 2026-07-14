@@ -20,7 +20,7 @@ console.log('API配置状态:', {
 // ========================================
 const CARD_STORAGE_KEY = 'smart-doc-helper:card-code';
 // 购买引导文案：上架后把闲鱼商品链接/口令粘贴到这里
-const CARD_PURCHASE_GUIDE = '打开闲鱼 App，搜索「作文小助手 次数卡」即可购买；付款后系统自动发卡密。';
+const CARD_PURCHASE_GUIDE = '打开闲鱼 App，搜索「作文批改助手 次数卡」即可购买；付款后系统自动发卡密。';
 
 function getSavedCardCode() {
     try { return localStorage.getItem(CARD_STORAGE_KEY) || ''; } catch { return ''; }
