@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>粉彩作文小助手</title>
+    <title>作文批改助手</title>
 
     <!-- 自定义字体 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,6 +14,16 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <script>
+    // 首次绘制前同步确定主题，避免系统深色用户看到日间闪烁
+    (function () {
+        try {
+            var saved = localStorage.getItem('smart-doc-helper:theme');
+            var night = saved ? saved === 'night' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (night) document.body.classList.add('night-mode');
+        } catch (e) { /* 隐私模式下按日间渲染 */ }
+    })();
+    </script>
     <!-- SVG 图标库（Lucide 风格描边图标） -->
     <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
         <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
@@ -54,7 +64,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </div>
-                    <h1 class="text-2xl">粉彩作文小助手</h1>
+                    <h1 class="text-2xl">作文批改助手</h1>
                 </div>
                 <div class="student-header-actions">
                     <button id="themeToggleBtn" class="student-theme-toggle" type="button" aria-pressed="false" title="切换夜间模式">
@@ -560,13 +570,6 @@
             </div>
         </section>
     </main>
-
-    <!-- 页脚 -->
-    <footer class="relative z-10 px-6 py-8 mt-20">
-        <div class="max-w-7xl mx-auto text-center">
-            <p class="text-sm text-muted">© 2024 粉彩作文小助手. 专为学习设计.</p>
-        </div>
-    </footer>
 
     </div>
 

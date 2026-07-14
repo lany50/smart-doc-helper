@@ -1,6 +1,6 @@
 <div align="center">
 
-# 粉彩作文小助手 ✍️✨
+# 作文批改助手 ✍️✨
 
 **基于 AI 的英语作文识别、批改和写作指导工具**
 
@@ -583,6 +583,6 @@ in the Software without restriction...
 
 **Made with ❤️ by [lany50](https://github.com/lany50)**
 
-[⬆ 回到顶部](#粉彩作文小助手-)
+[⬆ 回到顶部](#作文批改助手-)
 
 </div>

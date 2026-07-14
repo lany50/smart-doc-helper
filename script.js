@@ -1906,6 +1906,43 @@ function iconHtml(name) {
     return `<svg class="icon" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
 }
 
+function escapeHtml(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// 轻量 Markdown 渲染：先整体转义再转换，模型输出无法注入 HTML
+function markdownToHtml(text) {
+    const inline = s => s
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, '$1<em>$2</em>');
+    const lines = escapeHtml(text || '').split(/\r?\n/);
+    let html = '';
+    let listTag = null;
+    const closeList = () => { if (listTag) { html += `</${listTag}>`; listTag = null; } };
+    const openList = tag => { if (listTag !== tag) { closeList(); html += `<${tag}>`; listTag = tag; } };
+    for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) { closeList(); continue; }
+        let match;
+        if ((match = line.match(/^#{1,6}\s+(.+)/))) {
+            closeList();
+            html += `<h5>${inline(match[1])}</h5>`;
+        } else if ((match = line.match(/^[-*•]\s+(.+)/))) {
+            openList('ul');
+            html += `<li>${inline(match[1])}</li>`;
+        } else if ((match = line.match(/^\d+[.、)]\s+(.+)/))) {
+            openList('ol');
+            html += `<li>${inline(match[1])}</li>`;
+        } else {
+            closeList();
+            html += `<p>${inline(line)}</p>`;
+        }
+    }
+    closeList();
+    return html;
+}
+
 // 动态卡片标题的 emoji 前缀 → 图标映射；未命中时按纯文本渲染
 const HEADING_ICONS = [
     ['🧭', 'compass'], ['🔎', 'search'], ['📍', 'map-pin'], ['✅', 'check-circle'],
@@ -2289,13 +2326,14 @@ function renderGradeResult(composer, data, ref) {
     appendTextCard(composer.gradeResultContent, '🎯 提分秘诀', data.tips);
 }
 
-function appendTextCard(parent, title, content, fallback = '', extraClass = '') {
+function appendTextCard(parent, title, content, fallback = '', extraClass = '', asMarkdown = false) {
     const card = document.createElement('section'); card.className = `grading-card ${extraClass}`.trim();
     const heading = document.createElement('h4'); renderIconHeading(heading, title); card.append(heading);
     const body = document.createElement('div'); body.className = 'content';
     if (Array.isArray(content)) {
         const list = document.createElement('ul'); (content.length ? content : [fallback]).forEach(item => { const line = document.createElement('li'); line.textContent = item; list.append(line); }); body.append(list);
-    } else body.textContent = content || fallback;
+    } else if (asMarkdown) body.innerHTML = markdownToHtml(content || fallback); // markdownToHtml 内部已整体转义
+    else body.textContent = content || fallback;
     card.append(body); parent.append(card);
 }
 
@@ -2315,9 +2353,9 @@ function appendRevisionTasks(parent, tasks, ref) {
 function renderGuidance(container, text) {
     container.replaceChildren();
     const sections = String(text || '').split(/\n(?=\d+\.\s*\*\*)/).filter(Boolean);
-    (sections.length ? sections : [text]).forEach(section => {
+    (sections.length ? sections : [String(text || '')]).forEach(section => {
         const match = section.match(/\*\*(.*?)\*\*/); const title = match ? match[1] : '写作思路';
-        appendTextCard(container, title, section.replace(/\d+\.\s*\*\*.*?\*\*\s*/, '').replace(/\*\*/g, '').trim());
+        appendTextCard(container, title, section.replace(/^\d+\.\s*\*\*.*?\*\*\s*/, '').trim(), '', '', true);
     });
 }
 
