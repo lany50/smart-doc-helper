@@ -6,7 +6,7 @@
 // API_KEY=your-text-model-api-key
 // OCR_API_BASE_URL=https://api.chatst.org
 // OCR_API_KEY=your-ocr-api-key
-// OCR_MODEL=gemini-3.5-flash
+// OCR_MODEL=gemini-4-argon
 //
 // This placeholder remains harmless for older local setups that still load it.
 window.LOCAL_API_CONFIG = {};

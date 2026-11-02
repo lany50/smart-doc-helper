@@ -106,7 +106,7 @@ API_BASE_URL=your-text-model-api-base-url
 API_KEY=your-text-model-api-key
 OCR_API_BASE_URL=https://api.chatst.org
 OCR_API_KEY=your-ocr-api-key
-OCR_MODEL=gemini-3.5-flash
+OCR_MODEL=gemini-4-argon
 ```
 
 #### 3️⃣ 运行服务
@@ -159,7 +159,7 @@ php -S localhost:8000
      API_KEY = your-text-model-api-key
      OCR_API_BASE_URL = https://api.chatst.org
      OCR_API_KEY = your-ocr-api-key
-     OCR_MODEL = gemini-3.5-flash
+     OCR_MODEL = gemini-4-argon
      ```
 
 6. **部署**
@@ -238,7 +238,7 @@ netlify deploy --prod
 | `API_KEY` | 批改/写作思路模型密钥 | `sk-...` |
 | `OCR_API_BASE_URL` | OCR 视觉模型 API 基础地址（未配置时回退到 `API_BASE_URL`） | `https://api.chatst.org` |
 | `OCR_API_KEY` | OCR 视觉模型密钥（未配置时回退到 `API_KEY`） | `sk-...` |
-| `OCR_MODEL` | OCR 使用的视觉模型 | `gemini-3.5-flash` |
+| `OCR_MODEL` | OCR 使用的视觉模型 | `gemini-4-argon` |
 | `ADMIN_SECRET` | 次数卡后台（`/admin.html`）管理密码，**必须配置** | 长随机字符串 |
 | `FREE_GRADES_PER_DAY` | 无卡用户每 IP 每天免费批改次数（默认 2） | `2` |
 | `FREE_OCR_PER_DAY` | 无卡用户每 IP 每天免费 OCR 次数（默认 15） | `15` |
@@ -258,7 +258,7 @@ netlify deploy --prod
 
 #### OCR 识别模型
 
-OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-3.5-flash`。作文批改和写作思路仍使用 OpenAI 兼容文本模型配置。
+OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-4-argon`。作文批改和写作思路仍使用 OpenAI 兼容文本模型配置。
 
 #### 批改模型
 
@@ -426,7 +426,7 @@ OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-3.5-f
 
 ### AI 模型
 
-- **OCR 模型** - gemini-3.5-flash
+- **OCR 模型** - gemini-4-argon
 - **语言模型** - deepseek-v4-flash、tencent/hy3:free
 
 ### 部署

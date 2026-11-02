@@ -1,5 +1,5 @@
 const DEFAULT_BASE_URL = 'https://api.chatst.org';
-const DEFAULT_OCR_MODEL = 'gemini-3.5-flash';
+const DEFAULT_OCR_MODEL = 'gemini-4-argon';
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS = 6000;
 const ROLE_LABELS = {

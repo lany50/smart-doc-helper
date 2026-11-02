@@ -16,7 +16,7 @@
 # 将 {{API_KEY}} 等替换为真实环境变量
 [context.production.environment]
   OCR_API_BASE_URL = "https://api.chatst.org"
-  OCR_MODEL = "gemini-3.5-flash"
+  OCR_MODEL = "gemini-4-argon"
 
 # Headers
 [[headers]]
