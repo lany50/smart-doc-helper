@@ -4,11 +4,16 @@
   "description": "Smart document helper for OCR and grading.",
   "main": "script.js",
   "scripts": {
-    "build": "node inject-env.js"
+    "build": "node inject-env.js",
+    "test": "node tools/local-test.mjs",
+    "test:ui": "node tools/ui-test.mjs"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@netlify/blobs": "^10.7.9"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.0"
   }
 }

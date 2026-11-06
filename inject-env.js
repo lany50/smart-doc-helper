@@ -32,7 +32,12 @@ html = html.replace(
     `${envScript}\n    <script src="script.js">`
 );
 
-// 写回文件
-fs.writeFileSync(htmlPath, html);
+// 只发布浏览器需要的文件，避免把本地配置或测试资料上传到站点。
+const outputDir = path.join(__dirname, 'dist');
+fs.mkdirSync(outputDir, { recursive: true });
+fs.writeFileSync(path.join(outputDir, 'index.html'), html);
+for (const file of ['script.js', 'style.css', 'composition-validation.js', 'admin.html']) {
+    fs.copyFileSync(path.join(__dirname, file), path.join(outputDir, file));
+}
 
 console.log('✅ 环境变量注入完成！');

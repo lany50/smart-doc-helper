@@ -411,9 +411,10 @@ h1, h2, h3, h4,
 
 #applicationSection > .grid > div,
 #continuationSection > .grid > div {
-    height: min(850px, calc(100vh - 220px));
-    min-height: 680px;
-    overflow: hidden;
+    height: auto;
+    min-height: 0;
+    min-width: 0;
+    overflow: visible;
 }
 
 #essayOcrResult,
@@ -1522,4 +1523,110 @@ body.night-mode {
     align-items: flex-start;
     justify-content: space-between;
     gap: 8px;
+}
+
+/* 作文工作台：独立状态、自然高度与阅读优先的结果页 */
+.workspace-grid {
+    display: grid;
+    grid-template-columns: minmax(260px, var(--upload-width, 34%)) 12px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+.workspace-grid > * { min-width: 0; }
+.workspace-grid.is-single { grid-template-columns: minmax(0, 1fr); max-width: 1040px; margin-inline: auto; }
+.workspace-grid .card { border-width: 1px; border-top-width: 3px; box-shadow: 0 6px 24px rgba(25, 65, 85, .045); }
+.workspace-grid .card > div:first-child { gap: 12px; flex-wrap: wrap; }
+.workspace-grid .card-title { font-size: 18px; }
+.workspace-grid .card-title .icon { width: 1.7em; height: 1.7em; padding: .3em; box-shadow: none; }
+.workspace-splitter { align-self: stretch; min-height: 180px; position: relative; cursor: col-resize; touch-action: none; border-radius: 8px; }
+.workspace-splitter::after { content: ''; position: absolute; top: 30px; bottom: 30px; left: 5px; width: 2px; background: var(--border); border-radius: 2px; }
+.workspace-splitter:hover, .workspace-splitter:focus-visible { background: var(--surface-tint); outline: 2px solid var(--blue-strong); }
+.workspace-grid .dropzone { min-height: 230px; padding: 28px 16px; border-width: 1px; box-shadow: none; }
+.workspace-grid .dropzone-icon { animation: none; }
+.workspace-grid .student-file-item { grid-template-columns: 54px minmax(0, 1fr); gap: 10px; background: var(--surface-strong); border-color: var(--border); }
+.workspace-grid .student-file-preview { width: 54px; }
+.workspace-grid .student-role-buttons, .workspace-grid .student-file-tools { grid-column: 1 / -1; }
+#legacyApp .student-file-tools button, #legacyApp .student-role-buttons button { min-height: 34px; }
+#imagePreviewList, #continuationImagePreviewList { max-height: none; overflow: visible; }
+.model-settings { margin-left: auto; color: var(--muted); font-size: 12px; max-width: 100%; }
+.model-settings summary { cursor: pointer; padding: 6px 0; }
+.model-settings select { display: block; max-width: 100%; margin-top: 8px; font-size: 12px; }
+.composer-card { scroll-margin-top: 20px; }
+.composer-card .field { border-width: 1px; line-height: 1.7; }
+.composer-card textarea { min-height: 132px; resize: vertical; flex: none; }
+#gradingEssay, #continuationGradingContent { min-height: 220px; }
+#continuationGradingOriginal { min-height: 180px; }
+.composer-card .field[aria-invalid="true"] { border-color: var(--error); }
+.field-help { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.field-help.is-error { color: var(--error); }
+.field-help.is-warning { color: var(--warn); }
+.request-note { margin-top: 12px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.request-error { margin-bottom: 18px; padding: 14px; border: 1px solid var(--error); border-radius: 10px; background: var(--surface-strong); }
+.request-error p { margin-bottom: 10px; color: var(--error); overflow-wrap: anywhere; }
+.request-error button { padding: 5px 16px; }
+#gradingProgress, #continuationGradingProgress { min-height: 300px; text-align: center; padding: 28px 12px; }
+.progress-track.is-indeterminate .progress-fill { width: 35% !important; animation: request-progress 1.8s ease-in-out infinite; }
+@keyframes request-progress { from { transform: translateX(-100%); } to { transform: translateX(390%); } }
+.result-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.result-toolbar h4 { flex: 1 1 180px; padding-block: 8px; font-size: 18px; line-height: 1.6; }
+.result-toolbar .btn-row { flex-wrap: wrap; justify-content: flex-end; }
+#legacyApp .result-toolbar .btn { min-height: 38px; padding: 7px 12px; font-weight: 600; box-shadow: none; }
+.result-toolbar .btn-ghost, .result-toolbar .btn-soft { background: transparent; border-color: var(--border); color: var(--ink); }
+.source-details { margin-bottom: 22px; padding: 12px 16px; border-radius: 10px; background: var(--surface-tint); color: var(--muted); font-size: 13px; }
+.source-details summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+.source-details-body { margin-top: 16px; }
+.source-details-body strong { display: block; margin-top: 12px; color: var(--ink); }
+.source-details-body p { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+#gradingResultContent, #continuationGradingResultContent, .guidance-panel { overflow: visible; flex: none; }
+.workspace-grid .guidance-panel { padding: 0; border: 0; background: transparent; }
+.workspace-grid .grading-card { padding: 20px 0; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; box-shadow: none; background: transparent; transform: none; }
+.workspace-grid .grading-card:first-child { padding-top: 0; }
+.workspace-grid .grading-card h4 { padding-bottom: 0; margin-bottom: 12px; border: 0; font-size: 17px; }
+.workspace-grid .grading-card .content { font-size: 15px; line-height: 1.95; overflow-wrap: anywhere; }
+.workspace-grid .grading-card .content p + p { margin-top: 10px; }
+.workspace-grid .grading-card .content h5 { margin: 16px 0 8px; font-size: 15px; }
+.workspace-grid .score-card { box-shadow: none; }
+.workspace-grid .score-list { border-width: 1px; box-shadow: none; }
+#gradingInput > .btn-row, #continuationGradingInput > .btn-row { margin-top: 12px; flex-wrap: wrap; }
+#gradingInput > .btn-row > button, #continuationGradingInput > .btn-row > button { flex: 1 1 180px; }
+#getGuidanceBtn, #getContinuationGuidanceBtn { background: var(--surface-tint); border: 1px solid var(--border); color: var(--ink); box-shadow: none; }
+#legacyApp .student-header-actions { flex-wrap: wrap; }
+#legacyApp .student-header-actions button { min-height: 40px; }
+body { background: radial-gradient(ellipse at top left, rgba(140, 200, 255, .12), transparent 65%), var(--bg); }
+body.night-mode { --bg: #111b27; --muted: #b2c2d1; --error: #ffb1be; --warn: #f5cb84; background: radial-gradient(ellipse at top left, rgba(79, 158, 232, .08), transparent 65%), var(--bg); }
+.classroom-backdrop { display: none; }
+#legacyApp header nav { border-width: 1px; box-shadow: 0 4px 20px rgba(25, 65, 85, .05); }
+.night-mode #legacyApp header nav { box-shadow: none; }
+.hero-title { font-size: clamp(1.8rem, 3.5vw, 2.4rem); }
+.hero { margin-bottom: 24px; }
+.btn-primary, .btn-accent, .workspace-grid .score-card { color: #153c46; }
+.workspace-grid .score-card .text-3xl { text-shadow: none; }
+#legacyApp #applicationBtn.active { color: #153c46 !important; }
+.score-value, .model-settings summary:hover { color: #24765f; }
+.night-mode .score-value, .night-mode .model-settings summary:hover { color: #77d9b6; }
+.student-onboarding { border-width: 1px; box-shadow: none; background: var(--surface); }
+.success-toast, .error-toast { top: auto; bottom: max(24px, env(safe-area-inset-bottom)); pointer-events: none; font-weight: 600; }
+@media (max-width: 1100px) {
+    .workspace-grid { grid-template-columns: minmax(0, 1fr); }
+    .workspace-splitter { display: none; }
+    .workspace-grid .dropzone { min-height: 0; padding: 20px; }
+    .workspace-grid .dropzone-icon { width: 32px; height: 32px; }
+}
+@media (max-width: 768px) {
+    .workspace-grid .card { padding: 18px; }
+    .result-toolbar { gap: 8px; }
+    .result-toolbar .btn-row { flex-direction: row; justify-content: flex-start; width: 100%; }
+    .result-toolbar .btn-row button { width: auto; flex: 0 1 auto; }
+    #gradingInput > .btn-row > button, #continuationGradingInput > .btn-row > button { flex: none; }
+    .student-input-actions, .student-onboarding-copy { flex-wrap: wrap; }
+    .student-steps { grid-template-columns: minmax(0, 1fr); }
+    .student-input-choice { flex: 1 1 180px; }
+    .student-header-actions { width: 100%; }
+    .essay-type-tab { min-width: 0; padding: 10px; }
+    #applicationBtn, #continuationBtn { flex: 1; font-size: 13px; }
+    .workspace-grid .grading-card .content { font-size: 14px; }
+    .workspace-grid .score-card, .workspace-grid .score-list { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .progress-track.is-indeterminate .progress-fill { animation: none; transform: translateX(90%); }
 }

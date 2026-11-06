@@ -21,6 +21,7 @@ Thumbs.db
 
 # Node modules
 node_modules/
+.netlify/
 
 # Build输出
 dist/

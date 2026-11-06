@@ -1,6 +1,7 @@
 const DEFAULT_BASE_URL = 'https://api.chatst.org';
 const ALLOWED_MODELS = new Set(['deepseek-v4.1-flash']);
-const MAX_TOKENS_LIMIT = 6000;
+const MAX_TOKENS_LIMIT = 12000;
+const { validateInput, parseGrade } = require('../../composition-validation.js');
 
 const {
     connectBlobs,
@@ -58,6 +59,15 @@ exports.handler = async (event) => {
         const purpose = BILLED_PURPOSES.has(body.purpose)
             ? body.purpose
             : (body.purpose === 'split' && isRealSplitRequest(body) ? 'split' : 'grade');
+        if (purpose !== 'split') {
+            if (!['application', 'continuation'].includes(body.composition?.type)) {
+                return jsonResponse(400, { error: '请刷新页面后，填写题目和作文再重试。', code: 'INVALID_COMPOSITION' });
+            }
+            const validation = validateInput(body.composition, body.composition.type, purpose);
+            if (!validation.valid) {
+                return jsonResponse(400, { error: Object.values(validation.errors)[0], fields: validation.errors, code: 'INVALID_COMPOSITION' });
+            }
+        }
         const cardCode = String(event.headers['x-card-code'] || event.headers['X-Card-Code'] || body.cardCode || '').trim();
         const cardsStore = await getCardsStore();
         const usageStore = await getUsageStore();
@@ -113,6 +123,7 @@ exports.handler = async (event) => {
                 },
                 body: JSON.stringify({
                     model: body.model,
+                    thinking: { type: 'disabled' },
                     messages: body.messages,
                     max_tokens: maxTokens,
                     temperature: typeof body.temperature === 'number' ? body.temperature : 0.7
@@ -130,11 +141,34 @@ exports.handler = async (event) => {
             });
         }
 
+        const content = payload.choices?.[0]?.message?.content;
+        const finishReason = payload.choices?.[0]?.finish_reason;
+        if (typeof content !== 'string' || !content.trim() || finishReason === 'length') {
+            if (rollback) await rollback();
+            return jsonResponse(502, {
+                error: finishReason === 'length'
+                    ? 'AI 批改结果未完整生成，本次次数已退回，请重试'
+                    : 'AI 未返回有效内容，本次次数已退回，请重试',
+                code: 'MODEL_INCOMPLETE_RESPONSE'
+            });
+        }
+
+        // 在确认报告可展示后才保留本次扣次，解析失败不会变成默认的 0 分报告。
+        if (purpose === 'grade') {
+            try { parseGrade(content, body.composition.type); }
+            catch {
+                if (rollback) await rollback();
+                return jsonResponse(502, {
+                    error: '报告解析失败，本次次数已退回。输入内容已保留，请重试',
+                    code: 'MODEL_INVALID_REPORT'
+                });
+            }
+        }
+
         if (purpose !== 'split') {
             await bumpStat(billing && billing.mode === 'card' ? `card-${purpose}` : `free-${purpose}`);
         }
 
-        const content = payload.choices?.[0]?.message?.content || '';
         return jsonResponse(200, {
             content,
             model: payload.model || body.model,
@@ -186,8 +220,8 @@ function validateCompletionRequest(body) {
 }
 
 function normalizeMaxTokens(value) {
-    const tokens = Number(value || 3000);
-    if (!Number.isFinite(tokens) || tokens <= 0) return 3000;
+    const tokens = Number(value || MAX_TOKENS_LIMIT);
+    if (!Number.isFinite(tokens) || tokens <= 0) return MAX_TOKENS_LIMIT;
     return Math.min(Math.floor(tokens), MAX_TOKENS_LIMIT);
 }
 

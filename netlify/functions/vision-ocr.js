@@ -63,7 +63,7 @@ exports.handler = async (event) => {
 
         const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
         if (/application\/json/i.test(contentType)) {
-            return handleJsonRequest(event, apiKey);
+            return await handleJsonRequest(event, apiKey);
         }
 
         const fields = parseMultipartForm(event);
@@ -219,6 +219,9 @@ function sanitizeFileName(fileName) {
 
 function sanitizeModel(model) {
     const normalized = String(model || '').trim();
+    if (normalized && normalized !== DEFAULT_OCR_MODEL) {
+        throw httpError(400, '不支持的 OCR 模型');
+    }
     return normalized || DEFAULT_OCR_MODEL;
 }
 

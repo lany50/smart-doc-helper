@@ -2,7 +2,7 @@
 
 [build]
   command = "npm run build"
-  publish = "."
+  publish = "dist"
 
 [functions]
   node_bundler = "esbuild"
@@ -13,7 +13,7 @@
 [build.processing.html]
   pretty_urls = true
 
-# 将 {{API_KEY}} 等替换为真实环境变量
+# OCR 服务端配置；API 密钥保存在 Netlify 环境变量中
 [context.production.environment]
   OCR_API_BASE_URL = "https://api.chatst.org"
   OCR_MODEL = "gemini-4-argon"

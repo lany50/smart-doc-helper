@@ -19,16 +19,25 @@ const adminCards = require('../netlify/functions/admin-cards.js');
 
 // 假上游：默认成功返回固定内容，可切换为失败
 let upstreamShouldFail = false;
+let upstreamIncomplete = null;
+let upstreamInvalidReport = false;
+const validReport = { totalScore: 12, scores: { content: 4, language: 5, structure: 3 }, contentReview: '内容完整，表达基本准确。', suggestions: '改善连接词并检查时态。' };
+const validComposition = { type: 'application', topic: '给朋友写一封邀请信，邀请他参加学校运动会。', content: 'Dear Tom, please join our school sports day this Friday. We can play football together. Yours, Li Hua.' };
 let lastUpstreamBody;
 globalThis.fetch = async (_url, options) => {
     lastUpstreamBody = JSON.parse(options.body);
     if (upstreamShouldFail) {
         return { ok: false, status: 500, text: async () => JSON.stringify({ error: { message: '假上游故障' } }) };
     }
+    if (upstreamIncomplete) {
+        return { ok: true, status: 200, text: async () => JSON.stringify({
+            choices: [{ message: { content: upstreamIncomplete === 'empty' ? '' : '{"totalScore":' }, finish_reason: upstreamIncomplete === 'empty' ? 'stop' : 'length' }]
+        }) };
+    }
     return {
         ok: true,
         status: 200,
-        text: async () => JSON.stringify({ model: 'fake-model', choices: [{ message: { content: '这是假的批改结果' } }] })
+        text: async () => JSON.stringify({ model: 'fake-model', choices: [{ message: { content: upstreamInvalidReport ? '无法解析的评分结果' : JSON.stringify(validReport) } }] })
     };
 };
 
@@ -55,7 +64,7 @@ async function callAdmin(payload) {
 async function callChat(payload, { ip = '1.2.3.4', card } = {}) {
     const headers = card ? { 'x-card-code': card } : {};
     const res = await chatCompletion.handler(event({
-        body: { model: 'deepseek-v4.1-flash', messages: [{ role: 'user', content: 'hi' }], ...payload },
+        body: { model: 'deepseek-v4.1-flash', messages: [{ role: 'user', content: 'hi' }], composition: validComposition, ...payload },
         headers, ip
     }));
     return { status: res.statusCode, data: JSON.parse(res.body || '{}') };
@@ -186,14 +195,78 @@ console.log('\n== 7. OCR 限频（本测试 FREE_OCR_PER_DAY=2） ==');
     check('有卡用户OCR不限频', withCard.statusCode === 200, withCard.statusCode);
 }
 
-console.log('\n== 8. 批改模型路由 ==');
+console.log('\n== 8. 模型路由和拒绝旧配置 ==');
 {
-    const result = await callChat({ purpose: 'grade' }, { card: globalThis.classCard });
-    check('批改请求转发至 deepseek-v4.1-flash', result.status === 200 && lastUpstreamBody.model === 'deepseek-v4.1-flash');
-    for (const model of ['deepseek-v4-flash', 'tencent/hy3:free', 'gemini-3.5-flash']) {
-        const rejected = await callChat({ model }, { card: globalThis.classCard });
-        check(`拒绝旧批改模型 ${model}`, rejected.status === 400);
+    const valid = await callChat({ purpose: 'grade' }, { card: globalThis.classCard });
+    check('批改只转发指定的新模型', valid.status === 200 && lastUpstreamBody.model === 'deepseek-v4.1-flash');
+    check('批改使用非思考模式保证输出预算用于报告', lastUpstreamBody.thinking?.type === 'disabled');
+    const capped = await callChat({ purpose: 'grade', max_tokens: 50000 }, { card: globalThis.classCard });
+    check('完整报告输出预算上限为12000', capped.status === 200 && lastUpstreamBody.max_tokens === 12000);
+    const invalid = await callChat({ model: 'retired-model' }, { card: globalThis.classCard });
+    check('不支持的批改模型返回400', invalid.status === 400);
+    const mk = (model, ip = '4.4.4.4') => visionOcr.handler(event({
+        body: { action: 'split_ocr_text', rawText: 'hello', roles: ['essay'], ...(model ? { model } : {}) }, ip
+    }));
+    const ocrDefault = await mk();
+    check('OCR默认转发指定的新模型', ocrDefault.statusCode === 200 && lastUpstreamBody.model === 'gemini-4-argon');
+    const rejected = await mk('retired-model');
+    check('不支持的OCR模型返回400', rejected.statusCode === 400);
+    const retry = await mk('gemini-4-argon');
+    check('OCR拒绝无效模型后退回额度', retry.statusCode === 200);
+    upstreamShouldFail = true;
+    const failedOcr = await mk('gemini-4-argon', '3.3.3.3');
+    upstreamShouldFail = false;
+    const retry1 = await mk('gemini-4-argon', '3.3.3.3');
+    const retry2 = await mk('gemini-4-argon', '3.3.3.3');
+    check('OCR整理上游失败返回错误且退回额度', failedOcr.statusCode === 500 && retry1.statusCode === 200 && retry2.statusCode === 200);
+}
+
+console.log('\n== 9. 空白或截断报告不能扣次 ==');
+{
+    const before = await callRedeem(globalThis.paidCard);
+    for (const mode of ['empty', 'length']) {
+        upstreamIncomplete = mode;
+        const bad = await callChat({ purpose: 'grade' }, { card: globalThis.paidCard });
+        upstreamIncomplete = null;
+        const after = await callRedeem(globalThis.paidCard);
+        check(`${mode} 报告返回502且卡次数退回`, bad.status === 502 && bad.data.code === 'MODEL_INCOMPLETE_RESPONSE' && before.data.card.remaining === after.data.card.remaining);
     }
+    upstreamIncomplete = 'empty';
+    await callChat({ purpose: 'grade' }, { ip: '2.2.2.2' });
+    upstreamIncomplete = null;
+    const retry = await callChat({ purpose: 'grade' }, { ip: '2.2.2.2' });
+    check('空白报告也退回免费次数', retry.status === 200 && retry.data.billing?.used === 1);
+}
+
+console.log('\n== 10. 无效输入在扣次前拦截，异常评分退回次数 ==');
+{
+    const before = await callRedeem(globalThis.paidCard);
+    const savedBody = lastUpstreamBody;
+    const placeholder = await callChat({ purpose: 'guidance', composition: { type: 'continuation', topic: '测试', original: '测试' } }, { card: globalThis.paidCard });
+    const after = await callRedeem(globalThis.paidCard);
+    check('占位输入返回400，不调用上游且不扣次', placeholder.status === 400 && placeholder.data.code === 'INVALID_COMPOSITION' && before.data.card.remaining === after.data.card.remaining && lastUpstreamBody === savedBody);
+    const shortEssay = await callChat({ purpose: 'grade', composition: { ...validComposition, content: 'Thank you for your help.' } }, { card: globalThis.classCard });
+    check('真实短作文仍可批改', shortEssay.status === 200);
+    upstreamInvalidReport = true;
+    const invalid = await callChat({ purpose: 'grade' }, { card: globalThis.paidCard });
+    const refunded = await callRedeem(globalThis.paidCard);
+    check('非JSON评分返回502且退回卡次数', invalid.status === 502 && invalid.data.code === 'MODEL_INVALID_REPORT' && refunded.data.card.remaining === before.data.card.remaining);
+    await callChat({ purpose: 'grade' }, { ip: '10.20.30.40' });
+    upstreamInvalidReport = false;
+    const retry = await callChat({ purpose: 'grade' }, { ip: '10.20.30.40' });
+    check('评分解析失败退回免费额度', retry.status === 200 && retry.data.billing?.used === 1);
+    const { parseGrade } = require('../composition-validation.js');
+    for (const [name, data] of [
+        ['缺少分项', { ...validReport, scores: {} }],
+        ['总分不一致', { ...validReport, totalScore: 15 }],
+        ['字符串分数', { ...validReport, totalScore: '12' }],
+        ['超出范围', { ...validReport, scores: { content: 6, language: 5, structure: 1 } }],
+        ['缺少点评', { ...validReport, contentReview: '' }]
+    ]) {
+        let rejected = false; try { parseGrade(JSON.stringify(data), 'application'); } catch { rejected = true; }
+        check(`${name}不能显示成正常报告`, rejected);
+    }
+    check('真实零分可正常展示', parseGrade(JSON.stringify({ ...validReport, totalScore: 0, scores: { content: 0, language: 0, structure: 0 } }), 'application').totalScore === 0);
 }
 
 console.log(`\n结果：${passed} 通过，${failed} 失败`);
