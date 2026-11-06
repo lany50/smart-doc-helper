@@ -264,8 +264,7 @@ OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-4-arg
 
 | 模型 | 速度 | 质量 | 适用场景 |
 |------|------|------|----------|
-| `deepseek-v4-flash` | ⚡⚡⚡ | ⭐⭐⭐⭐ | 快速批改（推荐）|
-| `tencent/hy3:free` | ⚡⚡ | ⭐⭐⭐⭐ | 备用模型（免费）|
+| `deepseek-v4.1-flash` | ⚡⚡⚡ | ⭐⭐⭐⭐ | 快速批改（推荐）|
 
 ---
 
@@ -290,7 +289,7 @@ OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-4-arg
    - 如有识别或分段错误，可直接在文本框中修改
 
 4. **开始批改**
-   - 选择批改模型（推荐 deepseek-v4-flash）
+   - 选择批改模型（推荐 deepseek-v4.1-flash）
    - 点击 **"开始批改"**
    - 等待 10-15 秒
 
@@ -348,7 +347,7 @@ OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-4-arg
    - 手动调整如有识别错误
 
 4. **开始批改**
-   - 选择批改模型（推荐 deepseek-v4-flash）
+   - 选择批改模型（推荐 deepseek-v4.1-flash）
    - 点击 **"开始批改"**
    - 等待 15-20 秒
 
@@ -427,7 +426,7 @@ OCR 统一使用 OpenAI 兼容视觉模型接口，默认模型为 `gemini-4-arg
 ### AI 模型
 
 - **OCR 模型** - gemini-4-argon
-- **语言模型** - deepseek-v4-flash、tencent/hy3:free
+- **语言模型** - deepseek-v4.1-flash
 
 ### 部署
 

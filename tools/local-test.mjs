@@ -19,7 +19,9 @@ const adminCards = require('../netlify/functions/admin-cards.js');
 
 // 假上游：默认成功返回固定内容，可切换为失败
 let upstreamShouldFail = false;
-globalThis.fetch = async () => {
+let lastUpstreamBody;
+globalThis.fetch = async (_url, options) => {
+    lastUpstreamBody = JSON.parse(options.body);
     if (upstreamShouldFail) {
         return { ok: false, status: 500, text: async () => JSON.stringify({ error: { message: '假上游故障' } }) };
     }
@@ -53,7 +55,7 @@ async function callAdmin(payload) {
 async function callChat(payload, { ip = '1.2.3.4', card } = {}) {
     const headers = card ? { 'x-card-code': card } : {};
     const res = await chatCompletion.handler(event({
-        body: { model: 'deepseek-v4-flash', messages: [{ role: 'user', content: 'hi' }], ...payload },
+        body: { model: 'deepseek-v4.1-flash', messages: [{ role: 'user', content: 'hi' }], ...payload },
         headers, ip
     }));
     return { status: res.statusCode, data: JSON.parse(res.body || '{}') };
@@ -182,6 +184,16 @@ console.log('\n== 7. OCR 限频（本测试 FREE_OCR_PER_DAY=2） ==');
         headers: { 'x-card-code': globalThis.paidCard }
     }));
     check('有卡用户OCR不限频', withCard.statusCode === 200, withCard.statusCode);
+}
+
+console.log('\n== 8. 批改模型路由 ==');
+{
+    const result = await callChat({ purpose: 'grade' }, { card: globalThis.classCard });
+    check('批改请求转发至 deepseek-v4.1-flash', result.status === 200 && lastUpstreamBody.model === 'deepseek-v4.1-flash');
+    for (const model of ['deepseek-v4-flash', 'tencent/hy3:free', 'gemini-3.5-flash']) {
+        const rejected = await callChat({ model }, { card: globalThis.classCard });
+        check(`拒绝旧批改模型 ${model}`, rejected.status === 400);
+    }
 }
 
 console.log(`\n结果：${passed} 通过，${failed} 失败`);
