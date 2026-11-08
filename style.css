@@ -1554,3 +1554,43 @@ body.night-mode { --bg: #111b27; --muted: #b2c2d1; --error: #ffb1be; --warn: #f5
 @media (prefers-reduced-motion: reduce) {
     .progress-track.is-indeterminate .progress-fill { animation: none; transform: translateX(90%); }
 }
+
+/* 逐张 OCR：上传与核对占满可用宽度，批改材料由学生自行粘贴。 */
+.workspace-grid.is-upload { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+.workspace-grid.is-upload .workspace-splitter { display: none; }
+.workspace-grid.is-upload .dropzone { min-height: 0; padding: 20px; }
+.workspace-grid.is-upload .dropzone-icon { width: 32px; height: 32px; }
+.workspace-grid.is-upload .student-file-item { grid-template-columns: 54px minmax(0, 1fr) auto; }
+.workspace-grid.is-upload .student-file-tools { grid-column: auto; align-self: center; }
+.ocr-page-results { margin-top: 16px; scroll-margin-top: 20px; }
+.ocr-results-toolbar, .ocr-page-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ocr-results-toolbar { justify-content: space-between; }
+.ocr-results-toolbar h4 { font-size: 18px; font-weight: 700; }
+.ocr-pages { display: grid; gap: 24px; margin-top: 18px; }
+.ocr-page { min-width: 0; padding-top: 20px; border-top: 1px solid var(--border); }
+.ocr-page h5 { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.ocr-page-status { margin: 8px 0 14px; color: var(--muted); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.ocr-page-status.is-warning { color: var(--warn); }
+.ocr-page-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+.ocr-page-source { min-width: 0; border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+.ocr-page-source summary { cursor: pointer; font-size: 14px; }
+.ocr-page-source img { display: block; width: 100%; height: auto; max-height: 500px; object-fit: contain; margin-top: 12px; background: white; }
+.ocr-page-source a { display: block; margin-top: 12px; color: var(--blue-strong); font-size: 14px; }
+.ocr-page-editor { min-width: 0; }
+.ocr-page-editor label { display: block; font-size: 14px; margin-bottom: 8px; }
+#legacyApp .ocr-page-text { display: block; width: 100%; min-height: 440px; padding: 16px; font-size: 16px; line-height: 1.85; resize: vertical; border-width: 1px; white-space: pre-wrap; }
+.ocr-page-actions { margin-top: 12px; }
+#legacyApp .ocr-page-actions .btn, #legacyApp .ocr-results-toolbar .btn, #legacyApp .ocr-candidate .btn { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+.ocr-candidate { margin-top: 20px; padding: 14px; background: var(--surface-tint); border: 1px solid var(--border); border-radius: 12px; }
+.ocr-candidate p { font-size: 14px; line-height: 1.7; margin-bottom: 12px; }
+.ocr-candidate .btn { margin: 10px 8px 0 0; }
+@media (max-width: 768px) {
+    .workspace-grid.is-upload .student-file-item { grid-template-columns: 54px minmax(0, 1fr); }
+    .workspace-grid.is-upload .student-file-tools { grid-column: 1 / -1; }
+    .ocr-page-body { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    #legacyApp .ocr-page-text { min-height: 54svh; padding: 12px; }
+    .ocr-page-actions { gap: 8px; }
+    #legacyApp .ocr-page-actions .btn { flex: 1 1 100px; }
+    .ocr-page-source img { max-height: 70svh; }
+    .ocr-candidate { padding: 10px; }
+}

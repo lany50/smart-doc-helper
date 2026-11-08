@@ -67,6 +67,23 @@ try {
         assert.equal(r.statusCode, 200);
     }
     check('无卡识别超过原有15次限制仍可使用', true);
+    const imageEvent = () => {
+        const boundary = 'ocr-regression-boundary';
+        const body = `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\ngemini-4-argon\r\n--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="paper.png"\r\nContent-Type: image/png\r\n\r\nFAKE-IMAGE\r\n--${boundary}--\r\n`;
+        return { httpMethod: 'POST', headers: { 'content-type': `multipart/form-data; boundary=${boundary}` }, body: Buffer.from(body).toString('base64'), isBase64Encoded: true };
+    };
+    const savedOutput = output;
+    output = 'Write a letter.\nStudent handwriting.\nLAST LINE';
+    let imageResult = await ocr.handler(imageEvent());
+    check('逐页OCR保留文件全文与末尾', imageResult.statusCode === 200 && JSON.parse(imageResult.body).text.endsWith('LAST LINE'));
+    check('OCR使用高清输入和完整输出预算', lastBody.max_tokens === 12000 && lastBody.messages[0].content[1].image_url.detail === 'high');
+    mode = 'length'; imageResult = await ocr.handler(imageEvent());
+    check('OCR截断仍保留文字并明确标记不完整', imageResult.statusCode === 200 && JSON.parse(imageResult.body).incomplete && JSON.parse(imageResult.body).warnings.length > 0 && JSON.parse(imageResult.body).text.endsWith('LAST LINE'));
+    mode = 'empty'; imageResult = await ocr.handler(imageEvent());
+    check('OCR空响应不能显示为识别成功', imageResult.statusCode === 422 && JSON.parse(imageResult.body).error.includes('未识别出文字'));
+    mode = 'ok'; output = 'Dear [无法识别],'; imageResult = await ocr.handler(imageEvent());
+    check('模糊字词显式提示人工核对', JSON.parse(imageResult.body).warnings.some(text => text.includes('无法识别')));
+    output = savedOutput;
     const beforeStart = modelCalls;
     const started = await callChat(chatBody(), { prefer: 'respond-async' });
     const id = started.data.jobId;

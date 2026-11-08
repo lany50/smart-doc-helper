@@ -92,7 +92,7 @@
             <div class="student-onboarding" aria-label="使用指引">
                 <div class="student-onboarding-copy">
                     <strong>从这里开始</strong>
-                    <span>上传或粘贴 → 确认文字 → 获取反馈 → 修改作文</span>
+                    <span>一起上传 → 逐张核对并复制 → 粘贴批改 → 修改作文</span>
                 </div>
                 <div class="student-input-actions" role="group" aria-label="选择输入方式">
                     <button type="button" class="student-input-choice is-active" data-input-mode="upload"><svg class="icon"><use href="#i-camera"></use></svg> 上传作业照片</button>
@@ -117,7 +117,7 @@
 
             <!-- 应用文批改界面 -->
             <div id="applicationSection" class="essay-section">
-                <div class="workspace-grid">
+                <div class="workspace-grid is-upload">
                     <!-- 左侧：OCR区 -->
                     <div class="card card-blue asset-card p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
@@ -140,7 +140,7 @@
                             <button id="essaySelectBtn" class="btn btn-primary px-4 py-2 rounded-full text-sm">
                                 选择文件
                             </button>
-                            <p class="text-xs text-muted mt-2"><svg class="icon"><use href="#i-lightbulb"></use></svg> 上传后先给每张图标记“题目”或“作文”</p>
+                            <p class="text-xs text-muted mt-2"><svg class="icon"><use href="#i-lightbulb"></use></svg> 试卷和手写作文可以一起上传，无需分类</p>
                         </div>
 
                         <!-- 图片预览列表 -->
@@ -150,7 +150,7 @@
 
                         <!-- 识别按钮 -->
                         <button id="startOcrBtn" class="btn btn-primary hidden w-full py-2 text-sm mb-4 flex-shrink-0">
-                            <svg class="icon"><use href="#i-search"></use></svg> 开始识别全部图片
+                            <svg class="icon"><use href="#i-search"></use></svg> 识别待处理文件
                         </button>
 
                         <!-- 进度 -->
@@ -168,11 +168,14 @@
                         </div>
 
                         <!-- 识别结果 -->
-                        <details id="essayOcrResult" class="hidden ocr-raw-details">
-                            <summary>查看原始识别文字</summary>
-                            <p class="ocr-status-note">识别结果已填入编辑区。请检查题目与作文，再获取反馈。</p>
-                            <textarea id="essayRawOcrText" class="field ocr-raw-textarea" aria-label="原始识别文字" readonly></textarea>
-                        </details>
+                        <section id="essayOcrResult" class="hidden ocr-page-results" aria-label="逐张识别结果">
+                            <div class="ocr-results-toolbar">
+                                <h4>逐张识别结果</h4>
+                                <button type="button" class="btn btn-ghost ocr-copy-all">复制全部文字</button>
+                            </div>
+                            <p class="field-help">每张照片单独保留文字。请对照原图检查后复制，按需粘贴到下方题目或作文栏；不会自动填入批改。</p>
+                            <div class="ocr-pages"></div>
+                        </section>
                     </div>
 
                     <!-- 右侧：批改区 -->
@@ -309,7 +312,7 @@
 
             <!-- 读后续写批改界面 -->
             <div id="continuationSection" class="essay-section hidden">
-                <div class="workspace-grid">
+                <div class="workspace-grid is-upload">
                     <!-- 左侧：OCR区 -->
                     <div class="card card-blue asset-card p-6 flex flex-col">
                         <div class="flex items-center justify-between mb-4 flex-shrink-0">
@@ -332,7 +335,7 @@
                             <button id="continuationSelectBtn" class="btn btn-primary px-4 py-2 rounded-full text-sm">
                                 选择文件
                             </button>
-                            <p class="text-xs text-muted mt-2"><svg class="icon"><use href="#i-lightbulb"></use></svg> 上传后给每张图标记“题目”“原文”或“续写”</p>
+                            <p class="text-xs text-muted mt-2"><svg class="icon"><use href="#i-lightbulb"></use></svg> 试卷和手写作文可以一起上传，无需分类</p>
                         </div>
 
                         <!-- 图片预览列表 -->
@@ -342,7 +345,7 @@
 
                         <!-- 识别按钮 -->
                         <button id="startContinuationOcrBtn" class="btn btn-primary hidden w-full py-2 text-sm mb-4 flex-shrink-0">
-                            <svg class="icon"><use href="#i-search"></use></svg> 开始识别全部图片
+                            <svg class="icon"><use href="#i-search"></use></svg> 识别待处理文件
                         </button>
 
                         <!-- 进度 -->
@@ -360,11 +363,14 @@
                         </div>
 
                         <!-- 识别结果 -->
-                        <details id="continuationOcrResult" class="hidden ocr-raw-details">
-                            <summary>查看原始识别文字</summary>
-                            <p class="ocr-status-note">识别结果已填入编辑区。请检查题目与作文，再获取反馈。</p>
-                            <textarea id="continuationRawOcrText" class="field ocr-raw-textarea" aria-label="原始识别文字" readonly></textarea>
-                        </details>
+                        <section id="continuationOcrResult" class="hidden ocr-page-results" aria-label="逐张识别结果">
+                            <div class="ocr-results-toolbar">
+                                <h4>逐张识别结果</h4>
+                                <button type="button" class="btn btn-ghost ocr-copy-all">复制全部文字</button>
+                            </div>
+                            <p class="field-help">每张照片单独保留文字。请对照原图检查后复制，按需粘贴到下方题目或作文栏；不会自动填入批改。</p>
+                            <div class="ocr-pages"></div>
+                        </section>
                     </div>
 
                     <!-- 右侧：批改区 -->

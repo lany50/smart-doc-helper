@@ -1485,7 +1485,9 @@ async function callVisionOCR(file, model = 'gemini-4-argon') {
     return {
         text: (data.text || '').trim(),
         model: data.model || model,
-        fileName: data.fileName || file.name
+        fileName: data.fileName || file.name,
+        warnings: Array.isArray(data.warnings) ? data.warnings : [],
+        incomplete: Boolean(data.incomplete)
     };
 }
 
@@ -1729,12 +1731,12 @@ function validateOcrFile(file, showError = true) {
     const isValidPdf = isPdfFile(file);
 
     if (!isValidImage && !isValidPdf) {
-        if (showError) showToast('请选择图片或 PDF 文件', 'error');
+        if (showError) showToast('请选择 JPG、PNG、WebP 图片或 PDF 文件', 'error');
         return false;
     }
 
-    if (file.size > 200 * 1024 * 1024) {
-        if (showError) showToast('文件大小不能超过 200MB', 'error');
+    if (file.size > (isValidPdf ? 4 : 20) * 1024 * 1024) {
+        if (showError) showToast(isValidPdf ? 'PDF 不能超过 4MB，请拆分后上传' : '图片不能超过 20MB，请压缩后上传', 'error');
         return false;
     }
 
@@ -2040,7 +2042,6 @@ function initStudentExperience() {
         roles: APPLICATION_OCR_ROLE_OPTIONS,
         fileInput: 'essayFileInput', selectButton: 'essaySelectBtn', dropZone: 'essayDropZone', previewList: 'imagePreviewList', startOcr: 'startOcrBtn',
         ocrModel: 'essayOcrModel', progress: 'essayProgress', progressText: 'essayProgressText', progressCount: 'essayProgressCount', progressBar: 'essayProgressBar', ocrResult: 'essayOcrResult',
-        rawOcr: 'essayRawOcrText',
         gradeFields: { topic: 'gradingTopic', content: 'gradingEssay' }, gradeWordCount: 'gradingWordCount', gradeWordStatus: 'gradingWordStatus', gradeModel: 'gradingModel', guideButton: 'getGuidanceBtn', gradeButton: 'startGradingBtn', gradeInput: 'gradingInput', gradeProgress: 'gradingProgress', gradeProgressText: 'gradingProgressText', gradeProgressTime: 'gradingTimeEst', gradeProgressBar: 'gradingProgressBar', gradeResult: 'gradingResult', gradeResultContent: 'gradingResultContent',
         guidanceResult: 'guidanceResult', guidanceContent: 'guidanceContent', score: { total: 'totalScore', stars: 'scoreStars', content: 'contentScore', language: 'languageScore', structure: 'structureScore' },
         editResult: 'editGradingBtn', copyResult: 'copyResultBtn', downloadResult: 'downloadResultBtn', newWork: 'newGradingBtn', copyGuidance: 'copyGuidanceBtn', downloadGuidance: 'downloadGuidanceBtn', backFromGuidance: 'newGuidanceBtn'
@@ -2052,7 +2053,6 @@ function initStudentExperience() {
         roles: CONTINUATION_OCR_ROLE_OPTIONS,
         fileInput: 'continuationFileInput', selectButton: 'continuationSelectBtn', dropZone: 'continuationDropZone', previewList: 'continuationImagePreviewList', startOcr: 'startContinuationOcrBtn',
         ocrModel: 'continuationOcrModel', progress: 'continuationProgress', progressText: 'continuationProgressText', progressCount: 'continuationProgressCount', progressBar: 'continuationProgressBar', ocrResult: 'continuationOcrResult',
-        rawOcr: 'continuationRawOcrText',
         gradeFields: { topic: 'continuationGradingTopic', original: 'continuationGradingOriginal', content: 'continuationGradingContent' }, gradeWordCount: 'continuationGradingWordCount', gradeWordStatus: 'continuationGradingWordStatus', gradeModel: 'continuationGradingModel', guideButton: 'getContinuationGuidanceBtn', gradeButton: 'startContinuationGradingBtn', gradeInput: 'continuationGradingInput', gradeProgress: 'continuationGradingProgress', gradeProgressText: 'continuationGradingProgressText', gradeProgressTime: 'continuationGradingTimeEst', gradeProgressBar: 'continuationGradingProgressBar', gradeResult: 'continuationGradingResult', gradeResultContent: 'continuationGradingResultContent',
         guidanceResult: 'continuationGuidanceResult', guidanceContent: 'continuationGuidanceContent', score: { total: 'continuationTotalScore', stars: 'continuationScoreStars', content: 'continuationContentScore', language: 'continuationLanguageScore', structure: 'continuationStructureScore', norm: 'continuationNormScore' },
         editResult: 'editContinuationGradingBtn', copyResult: 'copyContinuationResultBtn', downloadResult: 'downloadContinuationResultBtn', newWork: 'newContinuationGradingBtn', copyGuidance: 'copyContinuationGuidanceBtn', downloadGuidance: 'downloadContinuationGuidanceBtn', backFromGuidance: 'newContinuationGuidanceBtn'
@@ -2134,7 +2134,6 @@ function initStudentComposer(config) {
         currentHistoryRef: null,
         fileInput: getById(config.fileInput), selectButton: getById(config.selectButton), dropZone: getById(config.dropZone), previewList: getById(config.previewList), startOcr: getById(config.startOcr),
         ocrModel: getById(config.ocrModel), progress: getById(config.progress), progressText: getById(config.progressText), progressCount: getById(config.progressCount), progressBar: getById(config.progressBar), ocrResult: getById(config.ocrResult),
-        rawOcr: getById(config.rawOcr),
         gradeWordCount: getById(config.gradeWordCount), gradeWordStatus: getById(config.gradeWordStatus), gradeModel: getById(config.gradeModel), guideButton: getById(config.guideButton), gradeButton: getById(config.gradeButton), gradeInput: getById(config.gradeInput), gradeProgress: getById(config.gradeProgress), gradeProgressText: getById(config.gradeProgressText), gradeProgressTime: getById(config.gradeProgressTime), gradeProgressBar: getById(config.gradeProgressBar), gradeResult: getById(config.gradeResult), gradeResultContent: getById(config.gradeResultContent),
         guidanceResult: getById(config.guidanceResult), guidanceContent: getById(config.guidanceContent),
         total: getById(config.score.total), stars: getById(config.score.stars), contentScore: getById(config.score.content), languageScore: getById(config.score.language), structureScore: getById(config.score.structure), normScore: config.score.norm ? getById(config.score.norm) : null,
@@ -2164,16 +2163,21 @@ function initStudentComposer(config) {
     composer.backFromGuidance.addEventListener('click', () => setComposerState(composer, 'editing', { focus: true }));
     getById(config.editResult).addEventListener('click', () => setComposerState(composer, 'editing', { focus: true }));
     composer.newWork.addEventListener('click', () => resetStudentWork(composer));
+    const goToMaterials = makeButton('去粘贴批改材料 ↓', '前往批改材料编辑区'); goToMaterials.className = 'btn btn-ghost';
+    goToMaterials.addEventListener('click', () => { composer.gradeFields.topic.focus({ preventScroll: true }); composer.card.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    composer.ocrResult.querySelector('.ocr-results-toolbar').append(goToMaterials);
+    composer.ocrResult.querySelector('.ocr-copy-all').addEventListener('click', () => copyText(composer.files.filter(item => item.ocr?.text).map((item, index) => `【${index + 1}. ${item.file.name}】\n${item.ocr.text}`).join('\n\n')));
     setupComposerWorkspace(composer);
     updateComposerButtons(composer);
     return composer;
 }
 
 function addStudentFiles(composer, files) {
+    if (composer.state === 'loading') return;
     const valid = files.filter(file => validateOcrFile(file));
     valid.forEach(file => composer.files.push({
-        id: createId(), file, roles: composer.files.length === 0 ? composer.roles.slice(0, composer.type === 'application' ? 1 : 2).map(role => role.value) : [composer.roles[composer.roles.length - 1].value],
-        rotation: 0, crop: null
+        id: createId(), file, previewUrl: URL.createObjectURL(file),
+        rotation: 0, crop: null, ocr: null
     }));
     composer.fileInput.value = '';
     renderStudentFiles(composer);
@@ -2186,68 +2190,133 @@ function renderStudentFiles(composer) {
         row.className = 'student-file-item';
         const preview = document.createElement('div'); preview.className = 'student-file-preview';
         if (isImageFile(item.file)) {
-            const image = document.createElement('img'); image.src = URL.createObjectURL(item.file); image.alt = `${item.file.name} 预览`; image.style.transform = `rotate(${item.rotation}deg)`; preview.append(image);
+            const image = document.createElement('img'); image.src = item.previewUrl; image.alt = `${item.file.name} 预览`; image.style.transform = `rotate(${item.rotation}deg)`; preview.append(image);
         } else preview.textContent = 'PDF';
         const details = document.createElement('div'); details.className = 'student-file-details';
-        const name = document.createElement('strong'); name.textContent = item.file.name;
-        const meta = document.createElement('span'); meta.textContent = `${formatFileSize(item.file.size)}${item.crop ? ' · 已裁剪' : ''}`;
+        const name = document.createElement('strong'); name.textContent = `${index + 1}. ${item.file.name}`;
+        const meta = document.createElement('span'); meta.textContent = `${formatFileSize(item.file.size)}${item.crop ? ' · 已裁剪' : ''}${item.ocr?.stale ? ' · 图片已修改，请重新识别' : item.ocr?.text ? ' · 已识别' : ''}`;
         details.append(name, meta);
-        const roles = document.createElement('div'); roles.className = 'student-role-buttons';
-        composer.roles.forEach(role => {
-            const button = document.createElement('button'); button.type = 'button'; button.textContent = role.label; button.className = item.roles.includes(role.value) ? 'active' : '';
-            button.addEventListener('click', () => { item.roles = toggleFileRole(item.roles, role.value); renderStudentFiles(composer); }); roles.append(button);
-        });
         const tools = document.createElement('div'); tools.className = 'student-file-tools';
         const moveUp = makeButton('↑', '上移'); moveUp.disabled = index === 0; moveUp.addEventListener('click', () => moveStudentFile(composer, index, -1));
         const moveDown = makeButton('↓', '下移'); moveDown.disabled = index === composer.files.length - 1; moveDown.addEventListener('click', () => moveStudentFile(composer, index, 1));
-        const left = makeButton('↺', '向左旋转'); left.addEventListener('click', () => { item.rotation = (item.rotation + 270) % 360; renderStudentFiles(composer); });
-        const right = makeButton('↻', '向右旋转'); right.addEventListener('click', () => { item.rotation = (item.rotation + 90) % 360; renderStudentFiles(composer); });
-        const crop = makeButton('裁剪', '裁剪照片'); crop.disabled = !isImageFile(item.file); crop.addEventListener('click', () => openCropEditor(item, () => renderStudentFiles(composer)));
-        const remove = makeButton('删除', '删除照片'); remove.addEventListener('click', () => { composer.files.splice(index, 1); renderStudentFiles(composer); });
-        tools.append(moveUp, moveDown, left, right, crop, remove); row.append(preview, details, roles, tools); composer.previewList.append(row);
+        const changed = () => { if (item.ocr) item.ocr.stale = true; renderStudentFiles(composer); };
+        const left = makeButton('↺', '向左旋转'); left.disabled = !isImageFile(item.file); left.addEventListener('click', () => { item.rotation = (item.rotation + 270) % 360; changed(); });
+        const right = makeButton('↻', '向右旋转'); right.disabled = !isImageFile(item.file); right.addEventListener('click', () => { item.rotation = (item.rotation + 90) % 360; changed(); });
+        const crop = makeButton('裁剪', '裁剪照片'); crop.disabled = !isImageFile(item.file); crop.addEventListener('click', () => openCropEditor(item, changed));
+        const remove = makeButton('移除', '移除照片及本页识别结果'); remove.addEventListener('click', () => {
+            if (item.ocr?.text && !window.confirm('移除这张照片及本页识别文字？请先复制需要保留的内容。')) return;
+            URL.revokeObjectURL(item.previewUrl); if (item.processedUrl) URL.revokeObjectURL(item.processedUrl); if (item.ocr?.candidate?.sourceUrl) URL.revokeObjectURL(item.ocr.candidate.sourceUrl);
+            composer.files.splice(index, 1); renderStudentFiles(composer);
+        });
+        tools.append(moveUp, moveDown, left, right, crop, remove);
+        if (composer.ocrBusy) tools.querySelectorAll('button').forEach(button => button.disabled = true);
+        row.append(preview, details, tools); composer.previewList.append(row);
     });
     const hasFiles = composer.files.length > 0;
+    const pending = composer.files.some(item => !item.ocr?.text || item.ocr.stale || item.ocr.error);
     composer.previewList.classList.toggle('hidden', !hasFiles);
     composer.startOcr.classList.toggle('hidden', !hasFiles);
+    composer.startOcr.disabled = composer.ocrBusy || !pending;
+    composer.startOcr.textContent = pending ? '识别待处理文件' : '全部已识别，可在下方逐张重识别';
+    composer.selectButton.disabled = Boolean(composer.ocrBusy);
+    composer.fileInput.disabled = Boolean(composer.ocrBusy);
+    composer.ocrModel.disabled = Boolean(composer.ocrBusy);
+    renderStudentOcrPages(composer);
 }
 
 function makeButton(text, label) { const button = document.createElement('button'); button.type = 'button'; button.textContent = text; button.setAttribute('aria-label', label); button.title = label; return button; }
 function moveStudentFile(composer, index, direction) { const destination = index + direction; if (destination < 0 || destination >= composer.files.length) return; [composer.files[index], composer.files[destination]] = [composer.files[destination], composer.files[index]]; renderStudentFiles(composer); }
 
-async function runStudentOcr(composer) {
+function renderStudentOcrPages(composer) {
+    const pages = composer.ocrResult.querySelector('.ocr-pages'); pages.replaceChildren();
+    composer.ocrResult.classList.toggle('hidden', !composer.files.some(item => item.ocr));
+    composer.files.forEach((item, index) => {
+        if (!item.ocr) return;
+        const result = item.ocr;
+        const card = document.createElement('article'); card.className = 'ocr-page'; card.dataset.fileId = item.id;
+        const heading = document.createElement('h5'); heading.textContent = `第 ${index + 1} 个文件 · ${item.file.name}`;
+        const status = document.createElement('p'); status.className = 'ocr-page-status'; status.setAttribute('role', 'status');
+        const warnings = [...(result.warnings || [])];
+        if (result.stale) warnings.push('图片已旋转或裁剪，当前文字来自上一次识别。');
+        if (result.error) warnings.push(`本次识别失败：${result.error}${result.text ? '；之前的文字已保留。' : '。可更换模型重试。'}`);
+        status.textContent = result.loading ? '正在识别这一页…' : warnings.join(' ') || `已识别 · ${result.model || ''} · 请对照原图检查有无漏字`;
+        status.classList.toggle('is-warning', warnings.length > 0);
+        const body = document.createElement('div'); body.className = 'ocr-page-body';
+        const source = document.createElement('details'); source.className = 'ocr-page-source'; source.open = window.matchMedia('(min-width: 769px)').matches;
+        const summary = document.createElement('summary'); summary.textContent = '查看原图 / 文件'; source.append(summary);
+        if (isImageFile(item.file)) {
+            const image = document.createElement('img'); image.src = item.processedUrl || item.previewUrl; image.alt = `第 ${index + 1} 个文件识别所用图片`; image.loading = 'lazy';
+            source.append(image);
+        }
+        const link = document.createElement('a'); link.href = item.processedUrl || item.previewUrl; link.target = '_blank'; link.rel = 'noopener'; link.textContent = '打开大图 / 文件'; source.append(link);
+        const editor = document.createElement('div'); editor.className = 'ocr-page-editor';
+        const label = document.createElement('label'); label.htmlFor = `ocr-text-${item.id}`; label.textContent = '本页文字（可编辑）';
+        const text = document.createElement('textarea'); text.id = label.htmlFor; text.className = 'field ocr-page-text'; text.value = result.text || ''; text.spellcheck = false;
+        text.placeholder = '本页未识别出文字，可重试或手动补充'; text.readOnly = Boolean(result.loading);
+        text.addEventListener('input', () => { result.text = text.value; });
+        const actions = document.createElement('div'); actions.className = 'ocr-page-actions';
+        const copy = makeButton('复制本页', `复制第 ${index + 1} 个文件文字`); copy.className = 'btn btn-primary'; copy.addEventListener('click', () => copyText(text.value, text));
+        const select = makeButton('全选文字', `全选第 ${index + 1} 个文件文字`); select.className = 'btn btn-ghost'; select.addEventListener('click', () => { text.focus(); text.select(); text.setSelectionRange(0, text.value.length); });
+        const retry = makeButton('重新识别本页', `重新识别第 ${index + 1} 个文件`); retry.className = 'btn btn-ghost'; retry.disabled = Boolean(composer.ocrBusy); retry.addEventListener('click', () => runStudentOcr(composer, item.id));
+        actions.append(copy, select, retry); editor.append(label, text, actions);
+        if (result.candidate) {
+            const candidate = document.createElement('div'); candidate.className = 'ocr-candidate';
+            const title = document.createElement('p'); title.textContent = `重识别结果：当前文字已保留，确认后才替换。 ${(result.candidate.warnings || []).join(' ')}`;
+            const candidateText = document.createElement('textarea'); candidateText.className = 'field ocr-page-text'; candidateText.value = result.candidate.text; candidateText.readOnly = true; candidateText.setAttribute('aria-label', '本页重识别结果');
+            const use = makeButton('使用这次结果', '使用本页重识别结果'); use.className = 'btn btn-primary'; use.addEventListener('click', () => { if (item.processedUrl) URL.revokeObjectURL(item.processedUrl); item.processedUrl = result.candidate.sourceUrl; Object.assign(result, result.candidate, { candidate: null }); renderStudentFiles(composer); });
+            const keep = makeButton('保留当前文字', '保留本页当前文字'); keep.className = 'btn btn-ghost'; keep.addEventListener('click', () => { URL.revokeObjectURL(result.candidate.sourceUrl); result.candidate = null; renderStudentOcrPages(composer); });
+            const copyCandidate = makeButton('复制这次结果', '复制本页重识别结果'); copyCandidate.className = 'btn btn-ghost'; copyCandidate.addEventListener('click', () => copyText(candidateText.value, candidateText));
+            candidate.append(title, candidateText, use, keep, copyCandidate); editor.append(candidate);
+        }
+        body.append(source, editor); card.append(heading, status, body); pages.append(card);
+    });
+}
+
+async function runStudentOcr(composer, fileId) {
     if (!composer.files.length || composer.state === 'loading') return;
+    const targets = composer.files.filter(item => fileId ? item.id === fileId : (!item.ocr?.text || item.ocr.stale || item.ocr.error));
+    if (!targets.length) return;
     const model = composer.ocrModel.value;
-    setComposerState(composer, 'loading', { message: '正在识别照片…', operation: 'ocr' });
-    const results = [];
+    composer.ocrBusy = true;
+    setComposerState(composer, 'loading', { message: '正在逐张识别照片…', operation: 'ocr' });
+    renderStudentFiles(composer);
+    let success = 0;
     try {
-        for (let index = 0; index < composer.files.length; index += 1) {
-            const item = composer.files[index];
-            composer.progressCount.textContent = `${index + 1}/${composer.files.length}`;
-            composer.progressText.textContent = `正在识别第 ${index + 1} 张…`;
-            composer.progressBar.style.width = `${(index / composer.files.length) * 100}%`;
+        for (let index = 0; index < targets.length; index += 1) {
+            const item = targets[index];
+            composer.progressCount.textContent = `${index + 1}/${targets.length}`;
+            composer.progressText.textContent = `正在识别 ${item.file.name}…`;
+            composer.progressBar.style.width = `${(index / targets.length) * 100}%`;
+            item.ocr ||= { text: '' }; item.ocr.loading = true;
+            renderStudentOcrPages(composer);
             try {
                 const file = await buildProcessedFile(item);
                 const result = await callEssayOCR(file, model);
-                results.push({ ok: true, roles: item.roles, text: result.text, fileName: item.file.name });
-            } catch (error) { results.push({ ok: false, roles: item.roles, text: '', fileName: item.file.name, error: error.message }); }
+                if (!result.text) throw new Error('未识别出文字，请检查清晰度或更换模型重试');
+                const nextUrl = URL.createObjectURL(file);
+                const next = { text: result.text, model: result.model, warnings: result.warnings, incomplete: result.incomplete, stale: false, error: null };
+                if (item.ocr.text) {
+                    if (item.ocr.candidate?.sourceUrl) URL.revokeObjectURL(item.ocr.candidate.sourceUrl);
+                    item.ocr.candidate = { ...next, sourceUrl: nextUrl };
+                } else {
+                    if (item.processedUrl) URL.revokeObjectURL(item.processedUrl);
+                    item.processedUrl = nextUrl; Object.assign(item.ocr, next);
+                }
+                item.ocr.error = null; success += 1;
+            } catch (error) { item.ocr.error = error.message; }
+            item.ocr.loading = false;
+            renderStudentOcrPages(composer);
         }
-        const success = results.filter(result => result.ok).length;
-        if (!success) throw new Error('所有文件都识别失败，请检查图片清晰度后重试');
-        composer.progressText.textContent = '正在整理题目和作文…';
-        const grouped = await organizeOcrByRoles(results, composer.roles, model);
-        Object.entries(composer.gradeFields).forEach(([key, field]) => {
-            const role = key === 'content' ? (composer.type === 'continuation' ? 'continuation' : 'essay') : key;
-            field.value = grouped[role] || ''; composer.touched.add(key);
-        });
-        composer.rawOcr.value = formatRoleOcrText(results, composer.roles);
-        updateComposerButtons(composer);
-        composer.ocrResult.classList.remove('hidden');
         composer.progressBar.style.width = '100%';
-        setComposerState(composer, 'editing', { focus: true });
-        showToast(success === results.length ? '识别完成，请在编辑区检查文字' : `已识别 ${success} 张，另有 ${results.length - success} 张失败`, success === results.length ? 'success' : 'error');
-    } catch (error) {
-        showComposerError(composer, `识别失败：${error.message}`, 'ocr');
+    } finally {
+        composer.ocrBusy = false;
+        setComposerState(composer, 'editing');
+        renderStudentFiles(composer);
     }
+    if (composer.type === activeStudentType) {
+        composer.ocrResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    showToast(success === targets.length ? '逐张识别完成，请核对后复制文字' : `已识别 ${success} 个文件，${targets.length - success} 个失败；可单独重试`, success === targets.length ? 'success' : 'error');
 }
 
 function updateComposerButtons(composer) {
@@ -2357,34 +2426,6 @@ function setupComposerWorkspace(composer) {
     composer.gradeProgress.setAttribute('aria-live', 'polite');
     composer.gradeProgress.querySelector('.progress-track').classList.add('is-indeterminate');
 
-    // 可拖动的列宽分隔条也支持键盘操作。
-    const splitter = document.createElement('div'); splitter.className = 'workspace-splitter';
-    splitter.tabIndex = 0; splitter.setAttribute('role', 'separator');
-    splitter.setAttribute('aria-label', '调整上传区宽度'); splitter.setAttribute('aria-orientation', 'vertical');
-    splitter.setAttribute('aria-valuemin', '28'); splitter.setAttribute('aria-valuemax', '48'); splitter.setAttribute('aria-valuenow', '34');
-    composer.workspace.insertBefore(splitter, composer.card); composer.splitter = splitter;
-    const resize = value => {
-        const width = Math.max(28, Math.min(48, value));
-        composer.workspace.style.setProperty('--upload-width', `${width}%`);
-        splitter.setAttribute('aria-valuenow', String(Math.round(width)));
-    };
-    splitter.addEventListener('pointerdown', event => {
-        if (event.button !== 0) return;
-        splitter.setPointerCapture(event.pointerId); event.preventDefault();
-        const move = current => {
-            const rect = composer.workspace.getBoundingClientRect();
-            resize((current.clientX - rect.left) / rect.width * 100);
-        };
-        const stop = () => { splitter.removeEventListener('pointermove', move); };
-        splitter.addEventListener('pointermove', move);
-        splitter.addEventListener('lostpointercapture', stop, { once: true });
-    });
-    splitter.addEventListener('keydown', event => {
-        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-        event.preventDefault();
-        const current = Number(splitter.getAttribute('aria-valuenow'));
-        resize(event.key === 'Home' ? 28 : event.key === 'End' ? 48 : current + (event.key === 'ArrowLeft' ? -2 : 2));
-    });
     setComposerState(composer, 'editing');
 }
 
@@ -2393,8 +2434,8 @@ function updateWorkspaceLayout(composer) {
     const single = result || composer.inputMode === 'paste';
     composer.workspace.classList.toggle('is-single', single);
     composer.assetCard.classList.toggle('hidden', single);
-    composer.splitter.classList.toggle('hidden', single);
     composer.workspace.classList.toggle('is-result', result);
+    composer.workspace.classList.toggle('is-upload', !single);
     if (composer.type === activeStudentType) {
         document.querySelectorAll('.student-input-choice').forEach(button => {
             const active = button.dataset.inputMode === composer.inputMode;
@@ -2413,7 +2454,11 @@ function setComposerState(composer, state, options = {}) {
     composer.gradeResult.classList.toggle('hidden', state !== 'grading');
     composer.guidanceResult.classList.toggle('hidden', state !== 'guidance');
     composer.card.setAttribute('aria-busy', String(loading));
-    composer.assetCard.inert = loading;
+    const recognizing = loading && options.operation === 'ocr';
+    composer.assetCard.inert = loading && !recognizing;
+    composer.gradeInput.classList.toggle('hidden', !['editing', 'error'].includes(state) && !recognizing);
+    composer.gradeInput.inert = loading;
+    composer.gradeProgress.classList.toggle('hidden', !loading || recognizing);
     composer.progress.classList.toggle('hidden', !loading || options.operation !== 'ocr');
     if (state !== 'error') composer.errorPanel.classList.add('hidden');
     if (loading) {
@@ -2517,10 +2562,14 @@ function renderGuidance(container, text) {
 }
 
 function buildReportText(composer) { return `${composer.type === 'application' ? '英语应用文' : '英语读后续写'} AI 批改报告\n\nAI 预估分：${composer.total.textContent}\n\n${composer.gradeResultContent.innerText}\n\n生成时间：${new Date().toLocaleString('zh-CN')}`; }
-function copyText(text) {
+function copyText(text, source) {
     if (!text.trim()) return showToast('没有可复制的内容', 'error');
-    if (!navigator.clipboard?.writeText) return showToast('当前浏览器不支持自动复制，请手动选择文字', 'error');
-    navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板')).catch(() => showToast('复制失败，请手动选择文字', 'error'));
+    const fallback = () => {
+        if (source) { source.focus(); source.select(); source.setSelectionRange(0, source.value.length); }
+        showToast(source ? '已选中文字，请长按或使用系统菜单复制' : '复制失败，请逐页选择文字复制', 'error');
+    };
+    if (!navigator.clipboard?.writeText) return fallback();
+    navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板')).catch(fallback);
 }
 function dateKey() { return new Date().toISOString().slice(0, 10); }
 function createId() { return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
@@ -2529,7 +2578,8 @@ function resetStudentWork(composer) {
     Object.values(composer.gradeFields).forEach(field => field.value = '');
     composer.activeWorkId = null; composer.currentHistoryRef = null;
     composer.touched.clear();
-    composer.files = []; composer.rawOcr.value = ''; composer.ocrResult.classList.add('hidden');
+    composer.files.forEach(item => { URL.revokeObjectURL(item.previewUrl); if (item.processedUrl) URL.revokeObjectURL(item.processedUrl); if (item.ocr?.candidate?.sourceUrl) URL.revokeObjectURL(item.ocr.candidate.sourceUrl); });
+    composer.files = []; composer.ocrResult.classList.add('hidden');
     renderStudentFiles(composer);
     composer.errorPanel.classList.add('hidden');
     setComposerState(composer, 'editing', { focus: true });
@@ -2606,7 +2656,8 @@ function loadHistoryVersion(work, version) {
     const composer = studentComposers[work.type]; if (!composer) return;
     if (composer.state === 'loading') return showToast('请等待当前任务完成后再打开记录', 'error');
     activeStudentType = work.type; getById(work.type === 'application' ? 'applicationBtn' : 'continuationBtn').click();
-    composer.files = []; composer.rawOcr.value = ''; composer.ocrResult.classList.add('hidden'); renderStudentFiles(composer);
+    composer.files.forEach(item => { URL.revokeObjectURL(item.previewUrl); if (item.processedUrl) URL.revokeObjectURL(item.processedUrl); if (item.ocr?.candidate?.sourceUrl) URL.revokeObjectURL(item.ocr.candidate.sourceUrl); });
+    composer.files = []; composer.ocrResult.classList.add('hidden'); renderStudentFiles(composer);
     Object.entries(version.input).forEach(([key, value]) => { if (composer.gradeFields[key]) composer.gradeFields[key].value = value || ''; });
     composer.activeWorkId = work.id; composer.currentHistoryRef = { workId: work.id, versionId: version.id }; updateComposerButtons(composer);
     if (version.kind === 'grading') { renderGradeResult(composer, version.outcome, composer.currentHistoryRef); setComposerState(composer, 'grading', { focus: true }); }
@@ -2657,7 +2708,8 @@ function openCropEditor(item, refresh) {
 
 function readCropValues() {
     let left = Number(getById('cropLeftInput').value); let top = Number(getById('cropTopInput').value); let width = Number(getById('cropWidthInput').value); let height = Number(getById('cropHeightInput').value);
-    width = Math.min(width, 100 - left); height = Math.min(height, 100 - top);
+    left = Number.isFinite(left) ? Math.max(0, Math.min(99, left)) : 0; top = Number.isFinite(top) ? Math.max(0, Math.min(99, top)) : 0;
+    width = Number.isFinite(width) ? Math.max(1, Math.min(width, 100 - left)) : 100 - left; height = Number.isFinite(height) ? Math.max(1, Math.min(height, 100 - top)) : 100 - top;
     return { left, top, width, height };
 }
 
@@ -2667,19 +2719,26 @@ function drawCropPreview() {
     canvas.width = 720; canvas.height = Math.max(240, Math.round(720 * image.height / image.width));
     const context = canvas.getContext('2d'); context.clearRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height);
     context.fillStyle = 'rgba(0,0,0,.45)'; const x = crop.left / 100 * canvas.width; const y = crop.top / 100 * canvas.height; const width = crop.width / 100 * canvas.width; const height = crop.height / 100 * canvas.height;
-    context.fillRect(0, 0, canvas.width, canvas.height); context.clearRect(x, y, width, height); context.strokeStyle = '#ffffff'; context.lineWidth = 3; context.strokeRect(x, y, width, height);
+    context.fillRect(0, 0, canvas.width, y); context.fillRect(0, y + height, canvas.width, canvas.height - y - height); context.fillRect(0, y, x, height); context.fillRect(x + width, y, canvas.width - x - width, height); context.strokeStyle = '#ffffff'; context.lineWidth = 3; context.strokeRect(x, y, width, height);
 }
 
 async function buildProcessedFile(item) {
-    if (!isImageFile(item.file) || (!item.rotation && !item.crop)) return item.file;
+    if (!isImageFile(item.file) || (!item.rotation && !item.crop && item.file.size <= 4 * 1024 * 1024)) return item.file;
     const image = await loadImageFile(item.file); const crop = item.crop || { left: 0, top: 0, width: 100, height: 100 };
     const sourceX = Math.round(image.width * crop.left / 100); const sourceY = Math.round(image.height * crop.top / 100); const sourceWidth = Math.max(1, Math.round(image.width * crop.width / 100)); const sourceHeight = Math.max(1, Math.round(image.height * crop.height / 100));
     const swap = item.rotation % 180 !== 0; const canvas = document.createElement('canvas'); canvas.width = swap ? sourceHeight : sourceWidth; canvas.height = swap ? sourceWidth : sourceHeight;
-    const context = canvas.getContext('2d'); context.translate(canvas.width / 2, canvas.height / 2); context.rotate(item.rotation * Math.PI / 180); context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, -sourceWidth / 2, -sourceHeight / 2, sourceWidth, sourceHeight);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, item.file.type || 'image/jpeg', .92));
-    return new File([blob || item.file], item.file.name.replace(/(\.[^.]+)?$/, '-edited$1'), { type: item.file.type || 'image/jpeg' });
+    const context = canvas.getContext('2d'); context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height); context.translate(canvas.width / 2, canvas.height / 2); context.rotate(item.rotation * Math.PI / 180); context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, -sourceWidth / 2, -sourceHeight / 2, sourceWidth, sourceHeight);
+    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .94));
+    while (blob && blob.size > 4 * 1024 * 1024 && canvas.width > 1000 && canvas.height > 1000) {
+        const smaller = document.createElement('canvas'); smaller.width = Math.round(canvas.width * .85); smaller.height = Math.round(canvas.height * .85);
+        smaller.getContext('2d').drawImage(canvas, 0, 0, smaller.width, smaller.height);
+        canvas.width = smaller.width; canvas.height = smaller.height; canvas.getContext('2d').drawImage(smaller, 0, 0);
+        blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .9));
+    }
+    if (!blob || blob.size > 4 * 1024 * 1024) throw new Error('图片处理后仍过大，请裁剪或压缩后重试');
+    return new File([blob], item.file.name.replace(/(\.[^.]+)?$/, '-edited.jpg'), { type: 'image/jpeg' });
 }
 
-function loadImageFile(file) { return new Promise((resolve, reject) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => reject(new Error('无法读取图片')); image.src = URL.createObjectURL(file); }); }
+function loadImageFile(file) { return new Promise((resolve, reject) => { const image = new Image(); const url = URL.createObjectURL(file); image.onload = () => { URL.revokeObjectURL(url); resolve(image); }; image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('无法读取图片')); }; image.src = url; }); }
 
 })();
