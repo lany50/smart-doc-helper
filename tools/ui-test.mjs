@@ -35,6 +35,16 @@ let responseMode = 'ok';
 let releaseResponse;
 let lastRequest;
 const ocrRequests = [];
+const pendingJobs = new Map();
+let nextJob = 0;
+let statusCalls = 0;
+const queueResult = (route, result) => {
+    assert.equal(route.request().headers().prefer, 'respond-async');
+    assert.ok(!('x-card-code' in route.request().headers()));
+    const jobId = (++nextJob).toString(16).padStart(64, '0');
+    pendingJobs.set(jobId, result);
+    return route.fulfill({ status: 202, json: { jobId } });
+};
 try {
     browser = await chromium.launch({ headless: true, executablePath });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -44,21 +54,27 @@ try {
     });
     await page.route('**/*', async route => {
         if (!route.request().url().startsWith(origin)) return route.abort();
+        if (route.request().url().includes('/.netlify/functions/ai-job-status?')) {
+            statusCalls++;
+            const jobId = new URL(route.request().url()).searchParams.get('id');
+            if (statusCalls === 1) return route.fulfill({ status: 503, json: { error: 'temporary status failure', code: 'JOB_STATUS_UNAVAILABLE' } });
+            return route.fulfill(pendingJobs.get(jobId));
+        }
         if (route.request().url().endsWith('/.netlify/functions/chat-completion')) {
             calls++; lastRequest = route.request().postDataJSON();
             if (responseMode === 'wait') await new Promise(done => { releaseResponse = done; });
-            if (responseMode === 'error') return route.fulfill({ status: 502, json: { error: '模拟服务暂时不可用，本次次数已退回' } });
+            if (responseMode === 'error') return queueResult(route, { status: 504, json: { error: '模拟服务暂时不可用，请稍后重试' } });
             const content = responseMode === 'invalid' ? '模型返回了无法解析的报告'
                 : lastRequest.purpose === 'guidance' ? longGuidance
                     : JSON.stringify(lastRequest.composition.type === 'continuation' ? continuationReport : report);
-            return route.fulfill({ json: { content } });
+            return queueResult(route, { json: { content } });
         }
         if (route.request().url().endsWith('/.netlify/functions/vision-ocr')) {
             const body = route.request().postData();
             const split = body?.startsWith('{');
             ocrRequests.push({ split, model: split ? JSON.parse(body).model : body?.match(/name="model"\r\n\r\n([^\r\n]+)/)?.[1] });
-            if (body?.startsWith('{')) return route.fulfill({ json: { content: JSON.stringify({ topic, original, essay, continuation: essay }) } });
-            return route.fulfill({ json: { text: body?.includes('filename="作文.png"') ? essay : topic } });
+            if (body?.startsWith('{')) return queueResult(route, { json: { content: JSON.stringify({ topic, original, essay, continuation: essay }) } });
+            return queueResult(route, { json: { text: body?.includes('filename="作文.png"') ? essay : topic } });
         }
         return route.continue();
     });
@@ -81,6 +97,7 @@ try {
     };
     await page.goto(origin);
     await page.locator('#gradingTopicHelp').waitFor();
+    check('页面无卡密、购买或额度入口', await page.locator('#cardPanelBtn, #cardModal').count() === 0 && !/次数卡|卡密|闲鱼|免费额度/.test(await page.locator('body').innerText()));
     await capture('desktop-editing.png');
     await page.locator('.workspace-splitter').first().focus();
     await page.keyboard.press('ArrowRight');
@@ -199,6 +216,7 @@ try {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.evaluate(() => { document.body.style.zoom = '2'; });
     await noHorizontalOverflow('200% 页面放大');
+    check('AI任务通过轮询获取且临时查询失败可恢复', statusCalls > calls && calls >= 5);
     check('页面脚本无运行错误', errors.length === 0);
     console.log(`\n浏览器检查：${checks} 项通过。所有模型响应均为本地模拟。`);
 } finally {

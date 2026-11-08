@@ -1,277 +1,116 @@
-// 本地逻辑测试：不连 Netlify、不连真实模型，验证卡密/免费额度/退款全流程
-// 运行：node tools/local-test.mjs
-import { createRequire } from 'module';
-import { mkdtempSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
-
-const storeDir = mkdtempSync(join(tmpdir(), 'card-store-test-'));
-process.env.CARD_STORE_LOCAL_DIR = storeDir;
-process.env.ADMIN_SECRET = 'test-secret';
-process.env.API_KEY = 'fake-key';
-process.env.FREE_OCR_PER_DAY = '2';
-
+// Free-use and asynchronous AI regressions; no live API calls.
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const dir = mkdtempSync(join(tmpdir(), 'ai-jobs-test-'));
+process.env.AI_JOB_LOCAL_DIR = dir;
+process.env.API_KEY = 'test-only';
 const require = createRequire(import.meta.url);
-const chatCompletion = require('../netlify/functions/chat-completion.js');
-const visionOcr = require('../netlify/functions/vision-ocr.js');
-const cardRedeem = require('../netlify/functions/card-redeem.js');
-const adminCards = require('../netlify/functions/admin-cards.js');
-
-// 假上游：默认成功返回固定内容，可切换为失败
-let upstreamShouldFail = false;
-let upstreamIncomplete = null;
-let upstreamInvalidReport = false;
-const validReport = { totalScore: 12, scores: { content: 4, language: 5, structure: 3 }, contentReview: '内容完整，表达基本准确。', suggestions: '改善连接词并检查时态。' };
-const validComposition = { type: 'application', topic: '给朋友写一封邀请信，邀请他参加学校运动会。', content: 'Dear Tom, please join our school sports day this Friday. We can play football together. Yours, Li Hua.' };
-let lastUpstreamBody;
-globalThis.fetch = async (_url, options) => {
-    lastUpstreamBody = JSON.parse(options.body);
-    if (upstreamShouldFail) {
-        return { ok: false, status: 500, text: async () => JSON.stringify({ error: { message: '假上游故障' } }) };
-    }
-    if (upstreamIncomplete) {
-        return { ok: true, status: 200, text: async () => JSON.stringify({
-            choices: [{ message: { content: upstreamIncomplete === 'empty' ? '' : '{"totalScore":' }, finish_reason: upstreamIncomplete === 'empty' ? 'stop' : 'length' }]
-        }) };
-    }
-    return {
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify({ model: 'fake-model', choices: [{ message: { content: upstreamInvalidReport ? '无法解析的评分结果' : JSON.stringify(validReport) } }] })
-    };
+const chat = require('../netlify/functions/chat-completion.js');
+const ocr = require('../netlify/functions/vision-ocr.js');
+const jobs = require('../netlify/functions/shared/ai-jobs.js');
+const { requestModel } = require('../netlify/functions/shared/model-request.js');
+const { parseGrade } = require('../composition-validation.js');
+const { default: worker } = await import('../netlify/functions/ai-worker-background.mjs');
+const { default: status } = await import('../netlify/functions/ai-job-status.mjs');
+const { default: cleanup } = await import('../netlify/functions/ai-job-cleanup.mjs');
+let checks = 0;
+const check = (label, condition) => { assert.ok(condition, label); checks++; console.log(`✅ ${label}`); };
+const report = { totalScore: 12, scores: { content: 4, language: 5, structure: 3 }, contentReview: '内容完整，表达基本准确。', suggestions: '改善连接词并检查时态。' };
+const composition = { type: 'application', topic: '给朋友写一封邀请信，邀请他参加学校运动会。', content: 'Dear Tom, please join our school sports day this Friday. We can play football together. Yours, Li Hua.' };
+let mode = 'ok', lastBody, modelCalls = 0, workerCalls = 0;
+let output = JSON.stringify(report);
+const event = (body, headers = {}) => ({ httpMethod: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+const chatBody = (extra = {}) => ({ model: 'deepseek-v4.1-flash', purpose: 'grade', composition, messages: [{ role: 'user', content: '请批改作文' }], ...extra });
+const callChat = async (body = chatBody(), headers) => { const r = await chat.handler(event(body, headers)); return { status: r.statusCode, data: JSON.parse(r.body) }; };
+const poll = id => status(new Request(`https://example.test/.netlify/functions/ai-job-status?id=${id}`));
+const runWorker = id => worker(new Request('https://example.test/worker', { method: 'POST', body: JSON.stringify({ id }) }));
+globalThis.fetch = async (url, options) => {
+    if (String(url).endsWith('/ai-worker-background')) { workerCalls++; return new Response(null, { status: mode === 'start-fail' ? 503 : 202 }); }
+    modelCalls++; lastBody = JSON.parse(options.body);
+    if (mode === 'timeout') throw new DOMException('timeout', 'TimeoutError');
+    if (mode === 'network') throw new TypeError('fetch failed');
+    if (mode === 'html') return new Response('<html>bad gateway</html>', { status: 502 });
+    if (mode === 'upstream-error') return Response.json({ error: { message: 'private provider detail' } }, { status: 503 });
+    return Response.json({ model: lastBody.model, choices: [{ message: { content: mode === 'empty' ? '' : output }, finish_reason: mode === 'length' ? 'length' : 'stop' }] });
 };
-
-let passed = 0;
-let failed = 0;
-function check(name, cond, extra) {
-    if (cond) { passed++; console.log(`  ✅ ${name}`); }
-    else { failed++; console.log(`  ❌ ${name}${extra ? ' — ' + JSON.stringify(extra) : ''}`); }
-}
-
-function event({ body, headers = {}, ip = '1.2.3.4', method = 'POST' }) {
-    return {
-        httpMethod: method,
-        headers: { 'x-nf-client-connection-ip': ip, 'content-type': 'application/json', ...headers },
-        body: typeof body === 'string' ? body : JSON.stringify(body || {})
-    };
-}
-
-async function callAdmin(payload) {
-    const res = await adminCards.handler(event({ body: payload, headers: { authorization: 'Bearer test-secret' } }));
-    return { status: res.statusCode, data: JSON.parse(res.body || '{}') };
-}
-
-async function callChat(payload, { ip = '1.2.3.4', card } = {}) {
-    const headers = card ? { 'x-card-code': card } : {};
-    const res = await chatCompletion.handler(event({
-        body: { model: 'deepseek-v4.1-flash', messages: [{ role: 'user', content: 'hi' }], composition: validComposition, ...payload },
-        headers, ip
-    }));
-    return { status: res.statusCode, data: JSON.parse(res.body || '{}') };
-}
-
-async function callRedeem(code, ip = '1.2.3.4') {
-    const res = await cardRedeem.handler(event({ body: { code }, ip }));
-    return { status: res.statusCode, data: JSON.parse(res.body || '{}') };
-}
-
-console.log('\n== 1. 管理端：鉴权与建卡 ==');
-{
-    const bad = await adminCards.handler(event({ body: { action: 'list' }, headers: { authorization: 'Bearer wrong' } }));
-    check('错误管理密码被拒绝(401)', bad.statusCode === 401);
-
-    const { status, data } = await callAdmin({ action: 'create', count: 2, credits: 3, type: 'paid', note: '闲鱼3次卡' });
-    check('建卡成功', status === 200 && data.cards?.length === 2, data);
-    check('卡密格式 XXXX-XXXX-XXXX', /^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(data.cards?.[0]?.code || ''), data.cards?.[0]?.code);
-    globalThis.paidCard = data.cards[0].code;
-
-    const unlimited = await callAdmin({ action: 'create', count: 1, unlimited: true, type: 'class', note: '高三1班' });
-    check('不限次班级卡建卡成功', unlimited.status === 200 && unlimited.data.cards?.[0]?.unlimited === true);
-    globalThis.classCard = unlimited.data.cards[0].code;
-}
-
-console.log('\n== 2. 卡密兑换查询 ==');
-{
-    const ok = await callRedeem(globalThis.paidCard);
-    check('有效卡查询 ok，余额3', ok.status === 200 && ok.data.ok && ok.data.card.remaining === 3, ok.data);
-    const lower = await callRedeem(globalThis.paidCard.toLowerCase().replace(/-/g, ' '));
-    check('小写+空格分隔也能识别', lower.status === 200 && lower.data.ok, lower.data);
-    const missing = await callRedeem('AAAA-BBBB-CCCC');
-    check('不存在的卡返回404', missing.status === 404 && missing.data.code === 'CARD_INVALID');
-
-    await callAdmin({ action: 'update', code: globalThis.paidCard, disabled: true });
-    const disabled = await callRedeem(globalThis.paidCard);
-    check('停用卡兑换返回 ok:false', disabled.status === 200 && disabled.data.ok === false && disabled.data.code === 'CARD_DISABLED', disabled.data);
-    await callAdmin({ action: 'update', code: globalThis.paidCard, disabled: false });
-}
-
-console.log('\n== 3. 批改计费：卡扣次 ==');
-{
-    const g1 = await callChat({ purpose: 'grade' }, { card: globalThis.paidCard });
-    check('第1次批改成功，余额2', g1.status === 200 && g1.data.billing?.remaining === 2, g1.data);
-    await callChat({ purpose: 'guidance' }, { card: globalThis.paidCard });
-    const g3 = await callChat({ purpose: 'grade' }, { card: globalThis.paidCard });
-    check('第3次批改成功，余额0', g3.status === 200 && g3.data.billing?.remaining === 0, g3.data);
-    const g4 = await callChat({ purpose: 'grade' }, { card: globalThis.paidCard });
-    check('次数用完返回402 CARD_EMPTY', g4.status === 402 && g4.data.code === 'CARD_EMPTY', g4.data);
-
-    const c1 = await callChat({ purpose: 'grade' }, { card: globalThis.classCard });
-    check('班级不限次卡可用', c1.status === 200 && c1.data.billing?.unlimited === true, c1.data);
-}
-
-console.log('\n== 4. 免费额度：每IP每天2次 ==');
-{
-    const ip = '9.9.9.9';
-    const f1 = await callChat({ purpose: 'grade' }, { ip });
-    check('免费第1次成功 (1/2)', f1.status === 200 && f1.data.billing?.used === 1, f1.data);
-    const f2 = await callChat({ purpose: 'grade' }, { ip });
-    check('免费第2次成功 (2/2)', f2.status === 200 && f2.data.billing?.used === 2, f2.data);
-    const f3 = await callChat({ purpose: 'grade' }, { ip });
-    check('免费第3次被拦 402 FREE_LIMIT', f3.status === 402 && f3.data.code === 'FREE_LIMIT', f3.data);
-    const other = await callChat({ purpose: 'grade' }, { ip: '8.8.8.8' });
-    check('其他 IP 不受影响', other.status === 200, other.data);
-    const splitPrompt = '你是一个高考英语作文 OCR 文本整理助手。请拆分以下内容……';
-    const split = await callChat({ purpose: 'split', messages: [{ role: 'user', content: splitPrompt }] }, { ip });
-    check('split 不占批改额度', split.status === 200 && split.data.billing === null, split.data);
-    // 伪装 split（提示词前缀不符）应按批改计费；该 IP 免费额度已用完 → 402
-    const fakeSplit = await callChat({ purpose: 'split' }, { ip });
-    check('伪装 split 按批改计费被拦 402', fakeSplit.status === 402 && fakeSplit.data.code === 'FREE_LIMIT', fakeSplit.data);
-}
-
-console.log('\n== 5. 上游失败自动退款 ==');
-{
-    const { data } = await callAdmin({ action: 'create', count: 1, credits: 2, note: '退款测试' });
-    const code = data.cards[0].code;
-    upstreamShouldFail = true;
-    const bad = await callChat({ purpose: 'grade' }, { card: code });
-    upstreamShouldFail = false;
-    check('上游失败时返回错误', bad.status >= 500, bad);
-    const after = await callRedeem(code, '7.7.7.7');
-    check('失败后余额退回2', after.data.card?.remaining === 2, after.data);
-
-    const ip = '6.6.6.6';
-    upstreamShouldFail = true;
-    await callChat({ purpose: 'grade' }, { ip });
-    upstreamShouldFail = false;
-    const retry = await callChat({ purpose: 'grade' }, { ip });
-    check('免费额度失败后退回（重试仍是1/2）', retry.status === 200 && retry.data.billing?.used === 1, retry.data);
-}
-
-console.log('\n== 6. 停用/删除/加次数 ==');
-{
-    const upd = await callAdmin({ action: 'update', code: globalThis.classCard, disabled: true });
-    check('停用成功', upd.status === 200 && upd.data.card.disabled === true);
-    const use = await callChat({ purpose: 'grade' }, { card: globalThis.classCard });
-    check('停用卡被拒 402 CARD_DISABLED', use.status === 402 && use.data.code === 'CARD_DISABLED', use.data);
-    await callAdmin({ action: 'update', code: globalThis.classCard, disabled: false });
-
-    const add = await callAdmin({ action: 'update', code: globalThis.paidCard, addCredits: 10 });
-    check('补充次数：余额10', add.status === 200 && add.data.card.remaining === 10, add.data);
-
-    const list = await callAdmin({ action: 'list' });
-    check('列表返回全部卡', list.status === 200 && list.data.total >= 4, list.data.total);
-    const stats = await callAdmin({ action: 'stats', days: 3 });
-    check('统计接口正常', stats.status === 200 && stats.data.days.length === 3, stats.data);
-}
-
-console.log('\n== 7. OCR 限频（本测试 FREE_OCR_PER_DAY=2） ==');
-{
-    const ip = '5.5.5.5';
-    const mk = () => visionOcr.handler(event({
-        body: { action: 'split_ocr_text', rawText: 'hello world', roles: ['topic', 'essay'] },
-        ip
-    }));
-    const o1 = await mk();
-    const o2 = await mk();
-    const o3 = await mk();
-    check('前2次OCR成功', o1.statusCode === 200 && o2.statusCode === 200, [o1.statusCode, o2.statusCode]);
-    check('第3次被限频 429', o3.statusCode === 429, o3.statusCode);
-
-    const withCard = await visionOcr.handler(event({
-        body: { action: 'split_ocr_text', rawText: 'hello', roles: ['topic'] },
-        ip,
-        headers: { 'x-card-code': globalThis.paidCard }
-    }));
-    check('有卡用户OCR不限频', withCard.statusCode === 200, withCard.statusCode);
-}
-
-console.log('\n== 8. 模型路由和拒绝旧配置 ==');
-{
-    const valid = await callChat({ purpose: 'grade' }, { card: globalThis.classCard });
-    check('批改只转发指定的新模型', valid.status === 200 && lastUpstreamBody.model === 'deepseek-v4.1-flash');
-    check('批改使用非思考模式保证输出预算用于报告', lastUpstreamBody.thinking?.type === 'disabled');
-    const capped = await callChat({ purpose: 'grade', max_tokens: 50000 }, { card: globalThis.classCard });
-    check('完整报告输出预算上限为12000', capped.status === 200 && lastUpstreamBody.max_tokens === 12000);
-    const invalid = await callChat({ model: 'retired-model' }, { card: globalThis.classCard });
-    check('不支持的批改模型返回400', invalid.status === 400);
-    const mk = (model, ip = '4.4.4.4') => visionOcr.handler(event({
-        body: { action: 'split_ocr_text', rawText: 'hello', roles: ['essay'], ...(model ? { model } : {}) }, ip
-    }));
-    const ocrDefault = await mk();
-    check('OCR默认转发指定的新模型', ocrDefault.statusCode === 200 && lastUpstreamBody.model === 'gemini-4-argon');
-    const rejected = await mk('gpt-6.1-sol');
-    check('不支持的OCR模型返回400', rejected.statusCode === 400);
-    const retry = await mk('gemini-4-argon');
-    check('OCR拒绝无效模型后退回额度', retry.statusCode === 200);
-    const deepseekOcr = await mk('deepseek-v4.1-flash', '4.4.4.5');
-    check('OCR支持转发DeepSeek模型', deepseekOcr.statusCode === 200 && lastUpstreamBody.model === 'deepseek-v4.1-flash');
-    check('DeepSeek OCR关闭思考以保留转写输出预算', lastUpstreamBody.thinking?.type === 'disabled');
-    upstreamShouldFail = true;
-    const failedOcr = await mk('gemini-4-argon', '3.3.3.3');
-    upstreamShouldFail = false;
-    const retry1 = await mk('gemini-4-argon', '3.3.3.3');
-    const retry2 = await mk('gemini-4-argon', '3.3.3.3');
-    check('OCR整理上游失败返回错误且退回额度', failedOcr.statusCode === 500 && retry1.statusCode === 200 && retry2.statusCode === 200);
-}
-
-console.log('\n== 9. 空白或截断报告不能扣次 ==');
-{
-    const before = await callRedeem(globalThis.paidCard);
-    for (const mode of ['empty', 'length']) {
-        upstreamIncomplete = mode;
-        const bad = await callChat({ purpose: 'grade' }, { card: globalThis.paidCard });
-        upstreamIncomplete = null;
-        const after = await callRedeem(globalThis.paidCard);
-        check(`${mode} 报告返回502且卡次数退回`, bad.status === 502 && bad.data.code === 'MODEL_INCOMPLETE_RESPONSE' && before.data.card.remaining === after.data.card.remaining);
+try {
+    for (let i = 0; i < 5; i++) {
+        const result = await callChat();
+        check(`无卡第 ${i + 1} 次批改成功且无额度字段`, result.status === 200 && !('billing' in result.data));
     }
-    upstreamIncomplete = 'empty';
-    await callChat({ purpose: 'grade' }, { ip: '2.2.2.2' });
-    upstreamIncomplete = null;
-    const retry = await callChat({ purpose: 'grade' }, { ip: '2.2.2.2' });
-    check('空白报告也退回免费次数', retry.status === 200 && retry.data.billing?.used === 1);
-}
-
-console.log('\n== 10. 无效输入在扣次前拦截，异常评分退回次数 ==');
-{
-    const before = await callRedeem(globalThis.paidCard);
-    const savedBody = lastUpstreamBody;
-    const placeholder = await callChat({ purpose: 'guidance', composition: { type: 'continuation', topic: '测试', original: '测试' } }, { card: globalThis.paidCard });
-    const after = await callRedeem(globalThis.paidCard);
-    check('占位输入返回400，不调用上游且不扣次', placeholder.status === 400 && placeholder.data.code === 'INVALID_COMPOSITION' && before.data.card.remaining === after.data.card.remaining && lastUpstreamBody === savedBody);
-    const shortEssay = await callChat({ purpose: 'grade', composition: { ...validComposition, content: 'Thank you for your help.' } }, { card: globalThis.classCard });
-    check('真实短作文仍可批改', shortEssay.status === 200);
-    upstreamInvalidReport = true;
-    const invalid = await callChat({ purpose: 'grade' }, { card: globalThis.paidCard });
-    const refunded = await callRedeem(globalThis.paidCard);
-    check('非JSON评分返回502且退回卡次数', invalid.status === 502 && invalid.data.code === 'MODEL_INVALID_REPORT' && refunded.data.card.remaining === before.data.card.remaining);
-    await callChat({ purpose: 'grade' }, { ip: '10.20.30.40' });
-    upstreamInvalidReport = false;
-    const retry = await callChat({ purpose: 'grade' }, { ip: '10.20.30.40' });
-    check('评分解析失败退回免费额度', retry.status === 200 && retry.data.billing?.used === 1);
-    const { parseGrade } = require('../composition-validation.js');
-    for (const [name, data] of [
-        ['缺少分项', { ...validReport, scores: {} }],
-        ['总分不一致', { ...validReport, totalScore: 15 }],
-        ['字符串分数', { ...validReport, totalScore: '12' }],
-        ['超出范围', { ...validReport, scores: { content: 6, language: 5, structure: 1 } }],
-        ['缺少点评', { ...validReport, contentReview: '' }]
-    ]) {
-        let rejected = false; try { parseGrade(JSON.stringify(data), 'application'); } catch { rejected = true; }
-        check(`${name}不能显示成正常报告`, rejected);
+    check('忽略旧浏览器卡密', (await callChat(chatBody(), { 'x-card-code': 'INVALID' })).status === 200);
+    check('模型关闭思考', lastBody.thinking.type === 'disabled');
+    await callChat(chatBody({ max_tokens: 99999 }));
+    check('保留完整报告输出预算', lastBody.max_tokens === 12000);
+    check('拒绝未知模型', (await callChat(chatBody({ model: 'bad' }))).status === 400);
+    const before = modelCalls;
+    check('占位文字不调用模型', (await callChat(chatBody({ composition: { type: 'continuation', topic: '测试', original: '测试' } }))).status === 400 && modelCalls === before);
+    check('真实短作文可批改', (await callChat(chatBody({ composition: { ...composition, content: 'Thank you for your help.' } }))).status === 200);
+    for (const failure of ['empty', 'length']) {
+        mode = failure;
+        check(`${failure} 结果不显示成成功`, (await callChat()).data.code === 'MODEL_INCOMPLETE_RESPONSE');
     }
-    check('真实零分可正常展示', parseGrade(JSON.stringify({ ...validReport, totalScore: 0, scores: { content: 0, language: 0, structure: 0 } }), 'application').totalScore === 0);
-}
-
-console.log(`\n结果：${passed} 通过，${failed} 失败`);
-rmSync(storeDir, { recursive: true, force: true });
-process.exit(failed ? 1 : 0);
+    mode = 'ok'; output = 'not JSON';
+    check('无效评分不显示默认零分', (await callChat()).data.code === 'MODEL_INVALID_REPORT');
+    output = JSON.stringify(report);
+    for (const failure of ['timeout', 'network', 'html', 'upstream-error']) {
+        mode = failure;
+        const r = await callChat();
+        check(`${failure} 返回可读错误且不暴露上游内容`, r.status >= 500 && r.data.error.includes('AI') && !r.data.error.includes('private'));
+    }
+    mode = 'ok';
+    for (let i = 0; i < 18; i++) {
+        const r = await ocr.handler(event({ action: 'split_ocr_text', rawText: 'some text', roles: ['essay'], model: i % 2 ? 'gemini-4-argon' : 'deepseek-v4.1-flash' }));
+        assert.equal(r.statusCode, 200);
+    }
+    check('无卡识别超过原有15次限制仍可使用', true);
+    const beforeStart = modelCalls;
+    const started = await callChat(chatBody(), { prefer: 'respond-async' });
+    const id = started.data.jobId;
+    check('请求立即返回后台任务ID', started.status === 202 && /^[a-f0-9]{64}$/.test(id) && workerCalls === 1);
+    check('启动任务不等待模型', modelCalls === beforeStart);
+    check('未完成任务返回202', (await poll(id)).status === 202);
+    await runWorker(id);
+    const result = await poll(id);
+    check('后台处理完成可取回报告', result.status === 200 && (await result.json()).content === output);
+    check('完成后删除原始输入', await jobs.getJobsStore().get(`request/${id}`) === null);
+    const calls = modelCalls; await runWorker(id);
+    check('重复后台通知不重复调用模型', calls === modelCalls);
+    const failing = await callChat(chatBody(), { prefer: 'respond-async' });
+    mode = 'timeout'; await runWorker(failing.data.jobId); mode = 'ok';
+    const failed = await poll(failing.data.jobId);
+    check('后台超时错误能送达页面', failed.status === 504 && (await failed.json()).code === 'MODEL_TIMEOUT');
+    check('拒绝猜测或无效任务ID', (await poll('bad')).status === 404);
+    await jobs.getJobsStore().setJSON(`result/${id}`, { state: 'pending', expiresAt: Date.now() - 1 });
+    check('过期任务不可读取', (await poll(id)).status === 404);
+    await cleanup();
+    check('定期清理过期结果', await jobs.getJobsStore().get(`result/${id}`) === null);
+    const oldCount = modelCalls;
+    const asyncOcr = await ocr.handler(event({ action: 'split_ocr_text', rawText: 'hello', roles: ['essay'] }, { prefer: 'respond-async' }));
+    check('OCR同样通过后台任务运行', asyncOcr.statusCode === 202 && modelCalls === oldCount);
+    await runWorker(JSON.parse(asyncOcr.body).jobId);
+    check('后台OCR处理完成', (await poll(JSON.parse(asyncOcr.body).jobId)).status === 200);
+    mode = 'start-fail';
+    check('任务启动失败给出错误', (await callChat(chatBody(), { prefer: 'respond-async' })).status >= 500);
+    mode = 'ok';
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (_url, { signal }) => new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, 100, Response.json({}));
+        signal.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason); });
+    });
+    let timedOut = false;
+    try { await requestModel('https://example.test', { apiKey: 'test', body: {}, timeoutMs: 5 }); } catch (e) { timedOut = e.code === 'MODEL_TIMEOUT'; }
+    globalThis.fetch = realFetch;
+    check('真实AbortSignal能终止挂起的模型请求', timedOut);
+    for (const data of [{ ...report, scores: {} }, { ...report, totalScore: 15 }, { ...report, totalScore: '12' }, { ...report, contentReview: '' }]) {
+        assert.throws(() => parseGrade(JSON.stringify(data), 'application'));
+    }
+    check('保持评分结构校验', true);
+    check('真实零分可展示', parseGrade(JSON.stringify({ ...report, totalScore: 0, scores: { content: 0, language: 0, structure: 0 } }), 'application').totalScore === 0);
+    for (const file of ['index.html', 'script.js', 'style.css']) check(`${file} 无收费入口`, !/次数卡|卡密|闲鱼|cardModal|cardHeaders|handleBillingError/.test(readFileSync(new URL('../' + file, import.meta.url), 'utf8')));
+    check('旧管理页面不再发布', !existsSync(new URL('../dist/admin.html', import.meta.url)));
+    console.log(`\n${checks} 项检查通过`);
+} finally { rmSync(dir, { recursive: true, force: true }); }

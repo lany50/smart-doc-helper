@@ -34,9 +34,10 @@ html = html.replace(
 
 // 只发布浏览器需要的文件，避免把本地配置或测试资料上传到站点。
 const outputDir = path.join(__dirname, 'dist');
+fs.rmSync(outputDir, { recursive: true, force: true });
 fs.mkdirSync(outputDir, { recursive: true });
 fs.writeFileSync(path.join(outputDir, 'index.html'), html);
-for (const file of ['script.js', 'style.css', 'composition-validation.js', 'admin.html']) {
+for (const file of ['script.js', 'style.css', 'composition-validation.js']) {
     fs.copyFileSync(path.join(__dirname, file), path.join(outputDir, file));
 }
 

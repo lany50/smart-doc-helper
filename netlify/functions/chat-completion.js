@@ -2,198 +2,43 @@ const DEFAULT_BASE_URL = 'https://api.chatst.org';
 const ALLOWED_MODELS = new Set(['deepseek-v4.1-flash']);
 const MAX_TOKENS_LIMIT = 12000;
 const { validateInput, parseGrade } = require('../../composition-validation.js');
+const { wantsAsync, startJob, jsonResponse } = require('./shared/ai-jobs');
+const { requestModel } = require('./shared/model-request');
 
-const {
-    connectBlobs,
-    getCardsStore,
-    getUsageStore,
-    getCard,
-    checkCard,
-    consumeCredit,
-    refundCredit,
-    takeQuota,
-    refundQuota,
-    ipHashOf,
-    bumpStat
-} = require('./shared/card-store.js');
-
-// 计费口径：grade/guidance 每次扣 1 次数（或占用每日免费额度）；split 是 OCR 辅助拆分，免费但限频
-const BILLED_PURPOSES = new Set(['grade', 'guidance']);
-const FREE_GRADES_PER_DAY = Number(process.env.FREE_GRADES_PER_DAY || 2);
-const FREE_SPLITS_PER_DAY = Number(process.env.FREE_SPLITS_PER_DAY || 30);
-
-// purpose 是客户端自报的：只有真正的 OCR 拆分提示词才享受 split 免费通道，
-// 伪装成 split 的任意请求一律按 grade 计费
-const SPLIT_PROMPT_PREFIXES = [
-    '你是一个高考英语作文 OCR 文本整理助手',
-    '你是一个高考英语读后续写 OCR 文本整理助手'
-];
-
-function isRealSplitRequest(body) {
-    if (!Array.isArray(body.messages) || body.messages.length !== 1) return false;
-    const content = body.messages[0]?.content;
-    if (typeof content !== 'string') return false;
-    return SPLIT_PROMPT_PREFIXES.some((prefix) => content.startsWith(prefix));
-}
-
-exports.handler = async (event) => {
-    if (event.httpMethod === 'OPTIONS') {
-        return jsonResponse(204, {});
-    }
-
-    if (event.httpMethod !== 'POST') {
-        return jsonResponse(405, { error: '只支持 POST 请求' });
-    }
-
+exports.handler = async event => {
+    if (event.httpMethod !== 'POST') return jsonResponse(405, { error: '只支持 POST 请求' });
     try {
         const apiKey = process.env.API_KEY || process.env.OCR_API_KEY;
-        if (!apiKey) {
-            return jsonResponse(500, { error: '未配置 API_KEY' });
-        }
-
-        const body = parseBody(event.body);
+        if (!apiKey) return jsonResponse(500, { error: '未配置 API_KEY' });
+        const body = parseBody(event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body);
         validateCompletionRequest(body);
-        connectBlobs(event);
-
-        // ---- 计费/限额 ----
-        const purpose = BILLED_PURPOSES.has(body.purpose)
-            ? body.purpose
-            : (body.purpose === 'split' && isRealSplitRequest(body) ? 'split' : 'grade');
+        const purpose = ['grade', 'guidance', 'split'].includes(body.purpose) ? body.purpose : 'grade';
         if (purpose !== 'split') {
             if (!['application', 'continuation'].includes(body.composition?.type)) {
-                return jsonResponse(400, { error: '请刷新页面后，填写题目和作文再重试。', code: 'INVALID_COMPOSITION' });
+                return jsonResponse(400, { error: '请填写题目和作文后重试', code: 'INVALID_COMPOSITION' });
             }
             const validation = validateInput(body.composition, body.composition.type, purpose);
-            if (!validation.valid) {
-                return jsonResponse(400, { error: Object.values(validation.errors)[0], fields: validation.errors, code: 'INVALID_COMPOSITION' });
-            }
+            if (!validation.valid) return jsonResponse(400, { error: Object.values(validation.errors)[0], fields: validation.errors, code: 'INVALID_COMPOSITION' });
         }
-        const cardCode = String(event.headers['x-card-code'] || event.headers['X-Card-Code'] || body.cardCode || '').trim();
-        const cardsStore = await getCardsStore();
-        const usageStore = await getUsageStore();
-        const ipHash = ipHashOf(event);
-
-        let billing = null;
-        let rollback = null;
-
-        if (purpose === 'split') {
-            // 拆分不扣次；持有效卡不限频，无卡按 IP 限频
-            const card = cardCode ? await getCard(cardsStore, cardCode) : null;
-            if (!card || !checkCard(card).ok) {
-                const quota = await takeQuota(usageStore, 'split', ipHash, FREE_SPLITS_PER_DAY);
-                if (!quota.allowed) {
-                    return jsonResponse(429, { error: '今日免费整理次数已用完，输入次数卡后不限次', code: 'FREE_LIMIT' });
-                }
-                rollback = () => refundQuota(usageStore, quota.key);
-            }
-        } else if (cardCode) {
-            const result = await consumeCredit(cardsStore, cardCode);
-            if (result.error) {
-                return jsonResponse(402, { error: result.error.message, code: result.error.reason });
-            }
-            billing = {
-                mode: 'card',
-                unlimited: !!result.card.unlimited,
-                remaining: result.card.unlimited ? null : result.card.remaining
-            };
-            rollback = () => refundCredit(cardsStore, cardCode);
-        } else {
-            const quota = await takeQuota(usageStore, 'free-grade', ipHash, FREE_GRADES_PER_DAY);
-            if (!quota.allowed) {
-                return jsonResponse(402, {
-                    error: `今日 ${FREE_GRADES_PER_DAY} 次免费批改已用完。可在闲鱼购买次数卡，兑换后继续使用～`,
-                    code: 'FREE_LIMIT'
-                });
-            }
-            billing = { mode: 'free', used: quota.used, limit: quota.limit };
-            rollback = () => refundQuota(usageStore, quota.key);
-        }
-        // ---- 计费/限额结束 ----
-
-        const completionsUrl = buildChatCompletionsUrl(process.env.API_BASE_URL || process.env.OCR_API_BASE_URL || DEFAULT_BASE_URL);
-        const maxTokens = normalizeMaxTokens(body.max_tokens);
-        let upstreamResponse;
-        let payload;
-        try {
-            upstreamResponse = await fetch(completionsUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: body.model,
-                    thinking: { type: 'disabled' },
-                    messages: body.messages,
-                    max_tokens: maxTokens,
-                    temperature: typeof body.temperature === 'number' ? body.temperature : 0.7
-                })
-            });
-            payload = await readJson(upstreamResponse);
-        } catch (upstreamError) {
-            if (rollback) await rollback();
-            throw upstreamError;
-        }
-        if (!upstreamResponse.ok) {
-            if (rollback) await rollback();
-            return jsonResponse(upstreamResponse.status || 502, {
-                error: payload.error?.message || payload.message || 'AI 文本模型调用失败'
-            });
-        }
-
+        if (wantsAsync(event)) return await startJob(event, 'text');
+        const payload = await requestModel(buildChatCompletionsUrl(process.env.API_BASE_URL || process.env.OCR_API_BASE_URL || DEFAULT_BASE_URL), {
+            apiKey, timeoutMs: event.aiBackground ? 180000 : 25000,
+            body: { model: body.model, thinking: { type: 'disabled' }, messages: body.messages, max_tokens: normalizeMaxTokens(body.max_tokens), temperature: typeof body.temperature === 'number' ? body.temperature : 0.7 }
+        });
         const content = payload.choices?.[0]?.message?.content;
         const finishReason = payload.choices?.[0]?.finish_reason;
         if (typeof content !== 'string' || !content.trim() || finishReason === 'length') {
-            if (rollback) await rollback();
-            return jsonResponse(502, {
-                error: finishReason === 'length'
-                    ? 'AI 批改结果未完整生成，本次次数已退回，请重试'
-                    : 'AI 未返回有效内容，本次次数已退回，请重试',
-                code: 'MODEL_INCOMPLETE_RESPONSE'
-            });
+            return jsonResponse(502, { error: finishReason === 'length' ? 'AI 结果未完整生成，请重试' : 'AI 未返回有效内容，请重试', code: 'MODEL_INCOMPLETE_RESPONSE' });
         }
-
-        // 在确认报告可展示后才保留本次扣次，解析失败不会变成默认的 0 分报告。
         if (purpose === 'grade') {
             try { parseGrade(content, body.composition.type); }
-            catch {
-                if (rollback) await rollback();
-                return jsonResponse(502, {
-                    error: '报告解析失败，本次次数已退回。输入内容已保留，请重试',
-                    code: 'MODEL_INVALID_REPORT'
-                });
-            }
+            catch { return jsonResponse(502, { error: '报告解析失败，输入内容已保留，请重试', code: 'MODEL_INVALID_REPORT' }); }
         }
-
-        if (purpose !== 'split') {
-            await bumpStat(billing && billing.mode === 'card' ? `card-${purpose}` : `free-${purpose}`);
-        }
-
-        return jsonResponse(200, {
-            content,
-            model: payload.model || body.model,
-            billing
-        });
+        return jsonResponse(200, { content, model: payload.model || body.model });
     } catch (error) {
-        const statusCode = error.statusCode || 500;
-        return jsonResponse(statusCode, {
-            error: error.message || 'AI 文本模型代理失败'
-        });
+        return jsonResponse(error.statusCode || 500, { error: error.message || 'AI 文本模型调用失败', ...(error.code ? { code: error.code } : {}) });
     }
 };
-
-function jsonResponse(statusCode, body) {
-    return {
-        statusCode,
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, X-Card-Code'
-        },
-        body: statusCode === 204 ? '' : JSON.stringify(body)
-    };
-}
 
 function parseBody(body) {
     try {
@@ -230,15 +75,6 @@ function buildChatCompletionsUrl(baseURL) {
     if (/\/chat\/completions$/i.test(normalized)) return normalized;
     if (/\/v\d+$/i.test(normalized)) return `${normalized}/chat/completions`;
     return `${normalized}/v1/chat/completions`;
-}
-
-async function readJson(response) {
-    const text = await response.text();
-    try {
-        return JSON.parse(text);
-    } catch {
-        throw httpError(response.status || 502, text || 'AI 文本模型返回了非 JSON 响应');
-    }
 }
 
 function httpError(statusCode, message) {
