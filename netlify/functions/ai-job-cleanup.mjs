@@ -1,7 +1,8 @@
+import { getStore } from '@netlify/blobs';
 import jobs from './shared/ai-jobs.js';
 
 export default async () => {
-    const store = jobs.getJobsStore(true);
+    const store = jobs.getJobsStore(true, getStore);
     let cursor;
     do {
         const page = await store.list({ cursor });

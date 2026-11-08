@@ -1,3 +1,4 @@
+import { getStore } from '@netlify/blobs';
 import jobs from './shared/ai-jobs.js';
 
 export default async request => {
@@ -6,7 +7,7 @@ export default async request => {
     const id = new URL(request.url).searchParams.get('id') || '';
     if (!/^[a-f0-9]{64}$/.test(id)) return reply(404, { error: '任务不存在或已过期，请重新生成' });
     try {
-        const result = await jobs.getJobsStore(true).get(`result/${id}`, { type: 'json' });
+        const result = await jobs.getJobsStore(true, getStore).get(`result/${id}`, { type: 'json' });
         if (!result || result.expiresAt < Date.now()) return reply(404, { error: '任务不存在或已过期，请重新生成' });
         if (result.state === 'done') return reply(result.response.statusCode, JSON.parse(result.response.body));
         return reply(202, { jobId: id, state: result.state });

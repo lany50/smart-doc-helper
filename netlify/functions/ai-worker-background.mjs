@@ -1,3 +1,4 @@
+import { getStore } from '@netlify/blobs';
 import jobs from './shared/ai-jobs.js';
 import chat from './chat-completion.js';
 import ocr from './vision-ocr.js';
@@ -5,7 +6,7 @@ import ocr from './vision-ocr.js';
 export default async request => {
     const { id } = await request.json();
     if (!/^[a-f0-9]{64}$/.test(id || '')) return;
-    const store = jobs.getJobsStore(true);
+    const store = jobs.getJobsStore(true, getStore);
     const input = await store.get(`request/${id}`, { type: 'json' });
     const previous = await store.get(`result/${id}`, { type: 'json' });
     if (!input || input.expiresAt < Date.now() || previous?.state === 'done' || previous?.state === 'running') return;

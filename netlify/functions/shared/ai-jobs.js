@@ -6,7 +6,7 @@ function connect(event) {
     if (!process.env.AI_JOB_LOCAL_DIR && event?.blobs) require('@netlify/blobs').connectLambda(event);
 }
 
-function getJobsStore(strong = false) {
+function getJobsStore(strong = false, storeFactory) {
     if (process.env.AI_JOB_LOCAL_DIR) {
         const fs = require('node:fs');
         const path = require('node:path');
@@ -25,7 +25,8 @@ function getJobsStore(strong = false) {
         options.siteID = process.env.NETLIFY_BLOBS_SITE_ID || process.env.SITE_ID;
         options.token = process.env.NETLIFY_BLOBS_TOKEN;
     }
-    return require('@netlify/blobs').getStore(options);
+    // ESM functions pass a native import so esbuild includes the SDK in their bundle.
+    return (storeFactory || require('@netlify/blobs').getStore)(options);
 }
 
 function jsonResponse(statusCode, body) {
