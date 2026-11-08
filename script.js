@@ -2257,11 +2257,22 @@ function renderStudentOcrPages(composer) {
         const actions = document.createElement('div'); actions.className = 'ocr-page-actions';
         const copy = makeButton('复制本页', `复制第 ${index + 1} 个文件文字`); copy.className = 'btn btn-primary'; copy.addEventListener('click', () => copyText(text.value, text));
         const select = makeButton('全选文字', `全选第 ${index + 1} 个文件文字`); select.className = 'btn btn-ghost'; select.addEventListener('click', () => { text.focus(); text.select(); text.setSelectionRange(0, text.value.length); });
-        const retry = makeButton('重新识别本页', `重新识别第 ${index + 1} 个文件`); retry.className = 'btn btn-ghost'; retry.disabled = Boolean(composer.ocrBusy); retry.addEventListener('click', () => runStudentOcr(composer, item.id));
-        actions.append(copy, select, retry); editor.append(label, text, actions);
+        const retryControls = document.createElement('div'); retryControls.className = 'ocr-retry-controls';
+        const modelLabel = document.createElement('label'); modelLabel.htmlFor = `ocr-model-${item.id}`; modelLabel.textContent = '重识别模型';
+        const retryModel = document.createElement('select'); retryModel.id = modelLabel.htmlFor; retryModel.className = 'field ocr-retry-model';
+        retryModel.setAttribute('aria-label', `第 ${index + 1} 个文件的重识别模型`);
+        Array.from(composer.ocrModel.options).forEach(option => retryModel.add(new Option(option.text, option.value)));
+        retryModel.value = item.retryModel || result.requestedModel || composer.ocrModel.value;
+        retryModel.disabled = Boolean(composer.ocrBusy);
+        retryModel.addEventListener('change', () => { item.retryModel = retryModel.value; });
+        modelLabel.append(retryModel);
+        const retry = makeButton('重新识别本页', `重新识别第 ${index + 1} 个文件`); retry.className = 'btn btn-ghost'; retry.disabled = Boolean(composer.ocrBusy); retry.addEventListener('click', () => runStudentOcr(composer, item.id, retryModel.value));
+        actions.append(copy, select); retryControls.append(modelLabel, retry);
+        const retryHint = document.createElement('p'); retryHint.className = 'field-help'; retryHint.textContent = '如果文字只识别了一部分，可换一个模型重试本页；不会影响其他页。';
+        editor.append(label, text, actions, retryControls, retryHint);
         if (result.candidate) {
             const candidate = document.createElement('div'); candidate.className = 'ocr-candidate';
-            const title = document.createElement('p'); title.textContent = `重识别结果：当前文字已保留，确认后才替换。 ${(result.candidate.warnings || []).join(' ')}`;
+            const title = document.createElement('p'); title.textContent = `重识别结果（${result.candidate.model || result.candidate.requestedModel || ''}）：当前文字已保留，确认后才替换。 ${(result.candidate.warnings || []).join(' ')}`;
             const candidateText = document.createElement('textarea'); candidateText.className = 'field ocr-page-text'; candidateText.value = result.candidate.text; candidateText.readOnly = true; candidateText.setAttribute('aria-label', '本页重识别结果');
             const use = makeButton('使用这次结果', '使用本页重识别结果'); use.className = 'btn btn-primary'; use.addEventListener('click', () => { if (item.processedUrl) URL.revokeObjectURL(item.processedUrl); item.processedUrl = result.candidate.sourceUrl; Object.assign(result, result.candidate, { candidate: null }); renderStudentFiles(composer); });
             const keep = makeButton('保留当前文字', '保留本页当前文字'); keep.className = 'btn btn-ghost'; keep.addEventListener('click', () => { URL.revokeObjectURL(result.candidate.sourceUrl); result.candidate = null; renderStudentOcrPages(composer); });
@@ -2272,11 +2283,11 @@ function renderStudentOcrPages(composer) {
     });
 }
 
-async function runStudentOcr(composer, fileId) {
+async function runStudentOcr(composer, fileId, selectedModel) {
     if (!composer.files.length || composer.state === 'loading') return;
     const targets = composer.files.filter(item => fileId ? item.id === fileId : (!item.ocr?.text || item.ocr.stale || item.ocr.error));
     if (!targets.length) return;
-    const model = composer.ocrModel.value;
+    const model = selectedModel || composer.ocrModel.value;
     composer.ocrBusy = true;
     setComposerState(composer, 'loading', { message: '正在逐张识别照片…', operation: 'ocr' });
     renderStudentFiles(composer);
@@ -2294,7 +2305,7 @@ async function runStudentOcr(composer, fileId) {
                 const result = await callEssayOCR(file, model);
                 if (!result.text) throw new Error('未识别出文字，请检查清晰度或更换模型重试');
                 const nextUrl = URL.createObjectURL(file);
-                const next = { text: result.text, model: result.model, warnings: result.warnings, incomplete: result.incomplete, stale: false, error: null };
+                const next = { text: result.text, model: result.model, requestedModel: model, warnings: result.warnings, incomplete: result.incomplete, stale: false, error: null };
                 if (item.ocr.text) {
                     if (item.ocr.candidate?.sourceUrl) URL.revokeObjectURL(item.ocr.candidate.sourceUrl);
                     item.ocr.candidate = { ...next, sourceUrl: nextUrl };

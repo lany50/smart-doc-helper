@@ -1594,3 +1594,12 @@ body.night-mode { --bg: #111b27; --muted: #b2c2d1; --error: #ffb1be; --warn: #f5
     .ocr-page-source img { max-height: 70svh; }
     .ocr-candidate { padding: 10px; }
 }
+
+.ocr-retry-controls { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.ocr-page-editor .ocr-retry-controls label { flex: 1 1 190px; max-width: 300px; margin: 0; }
+#legacyApp .ocr-retry-model { display: block; width: 100%; min-height: 44px; margin-top: 6px; padding: 8px 10px; font-size: 16px; }
+#legacyApp .ocr-retry-controls .btn { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+@media (max-width: 768px) {
+    .ocr-page-editor .ocr-retry-controls label { max-width: none; }
+    #legacyApp .ocr-retry-controls .btn { flex: 1 1 auto; }
+}
