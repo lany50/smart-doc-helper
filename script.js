@@ -134,11 +134,10 @@ const CONTINUATION_GRADING_PROMPT = `你是一名精通中国高考英语读后�
 
 现在，请批改以下学生的读后续写作文：
 
-【题目要求】
-{TOPIC}
+【试卷材料（原文、写作要求与两个段首句）】
+{MATERIALS}
 
-【原文内容】
-{ORIGINAL}
+请从以上完整试卷材料中辨认故事原文、写作要求、字数限制和两个段首句，无需用户预先拆分。缺少必要信息时请明确指出，不要编造。
 
 【学生续写】
 {CONTINUATION}
@@ -212,11 +211,10 @@ const CONTINUATION_GUIDANCE_PROMPT = `你是一名精通中国高考英语读后
 
 学生向你提供了以下读后续写材料：
 
-【题目要求】
-{TOPIC}
+【试卷材料（原文、写作要求与两个段首句）】
+{MATERIALS}
 
-【原文内容】
-{ORIGINAL}
+请从以上完整试卷材料中辨认故事原文、写作要求、字数限制和两个段首句，无需用户预先拆分。缺少必要信息时请明确指出，不要编造。
 
 请为学生提供详细的写作思路指导，包括：
 
@@ -1661,14 +1659,14 @@ async function getWritingGuidance(topic, model) {
 
 // 批改读后续写
 async function gradeContinuation(topic, original, content, model) {
+    const materials = CompositionValidation.getContinuationMaterials({ topic, original });
     const prompt = CONTINUATION_GRADING_PROMPT
-        .replace('{TOPIC}', topic)
-        .replace('{ORIGINAL}', original)
-        .replace('{CONTINUATION}', content);
+        .replace('{MATERIALS}', () => materials)
+        .replace('{CONTINUATION}', () => content);
 
     return callTextCompletion({
         model,
-        composition: { type: 'continuation', topic, original, content },
+        composition: { type: 'continuation', materials, content },
         purpose: 'grade',
         messages: [{
             role: "user",
@@ -1681,13 +1679,12 @@ async function gradeContinuation(topic, original, content, model) {
 
 // 获取读后续写思路指导
 async function getContinuationGuidance(topic, original, model) {
-    const prompt = CONTINUATION_GUIDANCE_PROMPT
-        .replace('{TOPIC}', topic)
-        .replace('{ORIGINAL}', original);
+    const materials = CompositionValidation.getContinuationMaterials({ topic, original });
+    const prompt = CONTINUATION_GUIDANCE_PROMPT.replace('{MATERIALS}', () => materials);
 
     return callTextCompletion({
         model,
-        composition: { type: 'continuation', topic, original },
+        composition: { type: 'continuation', materials },
         messages: [{
             role: "user",
             content: prompt
@@ -2053,7 +2050,7 @@ function initStudentExperience() {
         roles: CONTINUATION_OCR_ROLE_OPTIONS,
         fileInput: 'continuationFileInput', selectButton: 'continuationSelectBtn', dropZone: 'continuationDropZone', previewList: 'continuationImagePreviewList', startOcr: 'startContinuationOcrBtn',
         ocrModel: 'continuationOcrModel', progress: 'continuationProgress', progressText: 'continuationProgressText', progressCount: 'continuationProgressCount', progressBar: 'continuationProgressBar', ocrResult: 'continuationOcrResult',
-        gradeFields: { topic: 'continuationGradingTopic', original: 'continuationGradingOriginal', content: 'continuationGradingContent' }, gradeWordCount: 'continuationGradingWordCount', gradeWordStatus: 'continuationGradingWordStatus', gradeModel: 'continuationGradingModel', guideButton: 'getContinuationGuidanceBtn', gradeButton: 'startContinuationGradingBtn', gradeInput: 'continuationGradingInput', gradeProgress: 'continuationGradingProgress', gradeProgressText: 'continuationGradingProgressText', gradeProgressTime: 'continuationGradingTimeEst', gradeProgressBar: 'continuationGradingProgressBar', gradeResult: 'continuationGradingResult', gradeResultContent: 'continuationGradingResultContent',
+        gradeFields: { materials: 'continuationGradingMaterials', content: 'continuationGradingContent' }, gradeWordCount: 'continuationGradingWordCount', gradeWordStatus: 'continuationGradingWordStatus', gradeModel: 'continuationGradingModel', guideButton: 'getContinuationGuidanceBtn', gradeButton: 'startContinuationGradingBtn', gradeInput: 'continuationGradingInput', gradeProgress: 'continuationGradingProgress', gradeProgressText: 'continuationGradingProgressText', gradeProgressTime: 'continuationGradingTimeEst', gradeProgressBar: 'continuationGradingProgressBar', gradeResult: 'continuationGradingResult', gradeResultContent: 'continuationGradingResultContent',
         guidanceResult: 'continuationGuidanceResult', guidanceContent: 'continuationGuidanceContent', score: { total: 'continuationTotalScore', stars: 'continuationScoreStars', content: 'continuationContentScore', language: 'continuationLanguageScore', structure: 'continuationStructureScore', norm: 'continuationNormScore' },
         editResult: 'editContinuationGradingBtn', copyResult: 'copyContinuationResultBtn', downloadResult: 'downloadContinuationResultBtn', newWork: 'newContinuationGradingBtn', copyGuidance: 'copyContinuationGuidanceBtn', downloadGuidance: 'downloadContinuationGuidanceBtn', backFromGuidance: 'newContinuationGuidanceBtn'
     });
@@ -2116,7 +2113,7 @@ function initStudentOnboarding() {
             composer.inputMode = button.dataset.inputMode;
             setComposerState(composer, 'editing');
             updateWorkspaceLayout(composer);
-            const target = composer.inputMode === 'paste' ? composer.gradeFields.topic : composer.selectButton;
+            const target = composer.inputMode === 'paste' ? (composer.gradeFields.materials || composer.gradeFields.topic) : composer.selectButton;
             target.focus({ preventScroll: true });
             target.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
@@ -2164,7 +2161,7 @@ function initStudentComposer(config) {
     getById(config.editResult).addEventListener('click', () => setComposerState(composer, 'editing', { focus: true }));
     composer.newWork.addEventListener('click', () => resetStudentWork(composer));
     const goToMaterials = makeButton('去粘贴批改材料 ↓', '前往批改材料编辑区'); goToMaterials.className = 'btn btn-ghost';
-    goToMaterials.addEventListener('click', () => { composer.gradeFields.topic.focus({ preventScroll: true }); composer.card.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    goToMaterials.addEventListener('click', () => { (composer.gradeFields.materials || composer.gradeFields.topic).focus({ preventScroll: true }); composer.card.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     composer.ocrResult.querySelector('.ocr-results-toolbar').append(goToMaterials);
     composer.ocrResult.querySelector('.ocr-copy-all').addEventListener('click', () => copyText(composer.files.filter(item => item.ocr?.text).map((item, index) => `【${index + 1}. ${item.file.name}】\n${item.ocr.text}`).join('\n\n')));
     setupComposerWorkspace(composer);
@@ -2363,7 +2360,7 @@ async function runGuidance(composer) {
     setComposerState(composer, 'loading', { message: 'AI 正在整理写作思路…', operation: 'guidance' });
     try {
         const result = composer.type === 'continuation'
-            ? await getContinuationGuidance(input.topic, input.original, composer.gradeModel.value)
+            ? await getContinuationGuidance(input.materials, '', composer.gradeModel.value)
             : await getWritingGuidance(input.topic, composer.gradeModel.value);
         renderGuidance(composer.guidanceContent, result);
         composer.currentHistoryRef = recordStudentOutcome(composer, 'guidance', input, { text: result });
@@ -2379,7 +2376,7 @@ async function runGrading(composer) {
     setComposerState(composer, 'loading', { message: 'AI 正在生成批改报告…', operation: 'grading' });
     try {
         const result = composer.type === 'continuation'
-            ? await gradeContinuation(input.topic, input.original, input.content, composer.gradeModel.value)
+            ? await gradeContinuation(input.materials, '', input.content, composer.gradeModel.value)
             : await gradeEssay(input.topic, input.content, composer.gradeModel.value);
         const data = normalizeGradeResult(result, composer.type);
         const ref = recordStudentOutcome(composer, 'grading', input, data);
@@ -2390,7 +2387,7 @@ async function runGrading(composer) {
     } catch (error) { showComposerError(composer, `批改失败：${error.message}`, 'grading'); }
 }
 
-function readComposerInput(composer) { return { topic: composer.gradeFields.topic.value.trim(), original: composer.gradeFields.original?.value.trim() || '', content: composer.gradeFields.content.value.trim() }; }
+function readComposerInput(composer) { return Object.fromEntries(Object.entries(composer.gradeFields).map(([key, field]) => [key, field.value.trim()])); }
 
 function setupComposerWorkspace(composer) {
     composer.card = composer.gradeInput.closest('.composer-card');
@@ -2398,8 +2395,8 @@ function setupComposerWorkspace(composer) {
     composer.assetCard = composer.workspace.querySelector('.asset-card');
     composer.fieldHints = {};
     composer.fieldHelp = {
-        topic: composer.type === 'continuation' ? '请包含写作要求、两个段首句和字数要求。' : '请包含写作对象、内容要点和字数要求。',
-        original: '保留完整故事，方便判断人物、情节与冲突。',
+        topic: '请包含写作对象、内容要点和字数要求。',
+        materials: '试卷那一页的 OCR 文字只需粘贴一次，保留完整原文、写作要求和两个段首句。',
         content: '只获取写作思路时，这一项可以留空。'
     };
     Object.entries(composer.gradeFields).forEach(([key, field]) => {
@@ -2481,14 +2478,14 @@ function setComposerState(composer, state, options = {}) {
         const panel = state === 'grading' ? composer.gradeResult : composer.guidanceResult;
         const body = panel.querySelector('.source-details-body'); body.replaceChildren();
         Object.entries(input).filter(([, value]) => value).forEach(([key, value]) => {
-            const title = document.createElement('strong'); title.textContent = { topic: '题目要求', original: '故事原文', content: '学生作文' }[key];
+            const title = document.createElement('strong'); title.textContent = { topic: '题目要求', materials: '试卷材料（原文与要求）', content: composer.type === 'continuation' ? '学生续写' : '学生作文' }[key];
             const text = document.createElement('p'); text.textContent = value; body.append(title, text);
         });
     }
     updateWorkspaceLayout(composer);
     updateComposerButtons(composer);
     if (options.focus && composer.type === activeStudentType) {
-        const target = state === 'grading' ? composer.gradeResult : state === 'guidance' ? composer.guidanceResult : composer.gradeFields.topic;
+        const target = state === 'grading' ? composer.gradeResult : state === 'guidance' ? composer.guidanceResult : (composer.gradeFields.materials || composer.gradeFields.topic);
         target.focus({ preventScroll: true });
         composer.card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -2617,7 +2614,7 @@ function recordStudentOutcome(composer, kind, input, outcome) {
     const history = readStudentHistory();
     let work = history.find(item => item.id === composer.activeWorkId);
     if (!work) {
-        work = { id: createId(), type: composer.type, title: input.topic.replace(/\s+/g, ' ').slice(0, 36) || '未命名作文', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), versions: [] };
+        work = { id: createId(), type: composer.type, title: (input.materials || input.topic || '').replace(/\s+/g, ' ').slice(0, 36) || '未命名作文', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), versions: [] };
         composer.activeWorkId = work.id; history.push(work);
     }
     const version = { id: createId(), number: work.versions.length + 1, kind, createdAt: new Date().toISOString(), input: { ...input }, outcome };
@@ -2669,7 +2666,8 @@ function loadHistoryVersion(work, version) {
     activeStudentType = work.type; getById(work.type === 'application' ? 'applicationBtn' : 'continuationBtn').click();
     composer.files.forEach(item => { URL.revokeObjectURL(item.previewUrl); if (item.processedUrl) URL.revokeObjectURL(item.processedUrl); if (item.ocr?.candidate?.sourceUrl) URL.revokeObjectURL(item.ocr.candidate.sourceUrl); });
     composer.files = []; composer.ocrResult.classList.add('hidden'); renderStudentFiles(composer);
-    Object.entries(version.input).forEach(([key, value]) => { if (composer.gradeFields[key]) composer.gradeFields[key].value = value || ''; });
+    const input = work.type === 'continuation' ? { materials: CompositionValidation.getContinuationMaterials(version.input), content: version.input.content || '' } : version.input;
+    Object.entries(composer.gradeFields).forEach(([key, field]) => { field.value = input[key] || ''; });
     composer.activeWorkId = work.id; composer.currentHistoryRef = { workId: work.id, versionId: version.id }; updateComposerButtons(composer);
     if (version.kind === 'grading') { renderGradeResult(composer, version.outcome, composer.currentHistoryRef); setComposerState(composer, 'grading', { focus: true }); }
     else { renderGuidance(composer.guidanceContent, version.outcome.text); setComposerState(composer, 'guidance', { focus: true }); }

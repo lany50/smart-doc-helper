@@ -10,23 +10,35 @@
             || /^(.)\1{3,}$/u.test(compact);
     }
 
+    // 新记录直接使用试卷材料；旧记录按需合并并避免重复整页内容。
+    function getContinuationMaterials(input) {
+        if (input?.materials !== undefined) return String(input.materials || '').trim();
+        const topic = String(input?.topic || '').trim();
+        const original = String(input?.original || '').trim();
+        const compact = text => text.replace(/\s+/g, ' ');
+        if (!topic || compact(original).includes(compact(topic))) return original;
+        if (!original || compact(topic).includes(compact(original))) return topic;
+        return `${topic}\n\n${original}`;
+    }
+
     function validateInput(input, type, purpose) {
         const errors = {};
         const warnings = {};
         const continuation = type === 'continuation';
-        const required = ['topic', ...(continuation ? ['original'] : []), ...(purpose === 'grade' ? ['content'] : [])];
-        const labels = { topic: '题目要求', original: '故事原文', content: continuation ? '学生续写' : '学生作文' };
+        const values = continuation ? { ...input, materials: getContinuationMaterials(input) } : input;
+        const required = [continuation ? 'materials' : 'topic', ...(purpose === 'grade' ? ['content'] : [])];
+        const labels = { topic: '题目要求', materials: '试卷材料', content: continuation ? '学生续写' : '学生作文' };
         for (const key of required) {
-            const value = String(input?.[key] || '').trim();
+            const value = String(values?.[key] || '').trim();
             if (!value) errors[key] = `请填写${labels[key]}。`;
             else if (isPlaceholder(value)) errors[key] = `请填写真实的${labels[key]}，“测试”等占位文字无法用于${purpose === 'grade' ? '批改' : '生成思路'}。`;
         }
-        if (continuation && !errors.original) {
-            const original = String(input.original || '');
+        if (continuation && !errors.materials) {
+            const original = String(values.materials || '');
             const words = countWords(original);
             const chinese = (original.match(/[\u3400-\u9fff]/g) || []).length;
-            if (words < 8 && chinese < 20) errors.original = '原文过短，无法了解故事。请补充故事正文，并在题目要求中附上两个段首句。';
-            else if (words < 80 && chinese < 120) warnings.original = '原文较短，请确认故事完整，并已在题目要求中附上两个段首句。';
+            if (words < 8 && chinese < 20) errors.materials = '试卷材料过短，请粘贴完整原文、写作要求和两个段首句。';
+            else if (words < 80 && chinese < 120) warnings.materials = '试卷材料较短，请确认已包含完整原文、写作要求和两个段首句。';
         }
         if (purpose === 'grade' && !errors.content) {
             const words = countWords(input.content);
@@ -64,7 +76,7 @@
         return data;
     }
 
-    const api = { countWords, validateInput, parseGrade };
+    const api = { countWords, validateInput, parseGrade, getContinuationMaterials };
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.CompositionValidation = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

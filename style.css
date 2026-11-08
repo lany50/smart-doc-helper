@@ -1479,7 +1479,7 @@ body.night-mode {
 .composer-card .field { border-width: 1px; line-height: 1.7; }
 .composer-card textarea { min-height: 132px; resize: vertical; flex: none; }
 #gradingEssay, #continuationGradingContent { min-height: 220px; }
-#continuationGradingOriginal { min-height: 180px; }
+#continuationGradingMaterials { min-height: 320px; }
 .composer-card .field[aria-invalid="true"] { border-color: var(--error); }
 .field-help { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
 .field-help.is-error { color: var(--error); }

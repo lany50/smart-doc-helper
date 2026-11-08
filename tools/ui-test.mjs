@@ -25,6 +25,7 @@ let checks = 0;
 function check(message, value) { assert.ok(value, message); checks++; console.log(`✅ ${message}`); }
 const topic = '给朋友写一封邀请信，邀请他参加学校的志愿者活动。';
 const original = 'Anna was walking home when she found a little dog beside the road. It was cold and hungry. She decided to take it to her neighbor and ask for help. Her neighbor smiled and opened the door.';
+const materials = `${original}\n\n续写约150词，第一段以 Anna entered the room. 开头；第二段以 The dog finally found a home. 开头。`;
 const essay = 'Dear Tom, I am writing to invite you to our volunteer activity this Saturday. We will meet at the school gate at eight and help clean the park. Please bring a bottle of water. I hope you can join us. Yours, Li Hua.';
 const report = { totalScore: 12, scores: { content: 4, language: 5, structure: 3 }, contentReview: '内容完整，邀请目的明确。', suggestions: '补充活动安排并检查时态。', highlights: ['目的明确', '表达自然'], problems: ['活动细节可以更具体'], modelAnswer: essay, rubricEvidence: ['开头交代邀请目的'], missingRequirements: ['无'], confidence: '中：依据当前文字预估。', revisionTasks: [{ original: 'We will meet at the school gate.', issue: '可以补充时间', suggestion: 'We will meet at eight at the school gate.', reason: '安排更清楚', practice: '补充活动细节' }] };
 const continuationReport = { ...report, totalScore: 20, scores: { content: 6, language: 7, structure: 4, norm: 3 } };
@@ -103,14 +104,14 @@ try {
     await capture('desktop-editing.png');
     check('上传与逐张核对区域占满页面宽度', await page.locator('#applicationSection .workspace-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length === 1));
     await page.locator('#continuationBtn').click();
-    await page.locator('#continuationGradingTopic').fill('测试');
-    await page.locator('#continuationGradingOriginal').fill('测试');
+    check('读后续写只保留试卷材料与学生续写两个输入框', await page.locator('#continuationGradingInput textarea').count() === 2 && await page.locator('#continuationGradingOriginal, #continuationGradingTopic').count() === 0);
+    await page.locator('#continuationGradingMaterials').fill('测试');
     check('测试输入不能发出AI请求', await page.locator('#getContinuationGuidanceBtn').isDisabled() && calls === 0);
-    check('无效输入在字段旁解释原因', (await page.locator('#continuationGradingTopicHelp').innerText()).includes('占位文字'));
+    check('无效输入在字段旁解释原因', (await page.locator('#continuationGradingMaterialsHelp').innerText()).includes('占位文字'));
     await page.locator('[data-input-mode="paste"]').click();
     check('粘贴模式隐藏上传区', !(await page.locator('#continuationSection .asset-card').isVisible()));
-    await page.locator('#continuationGradingTopic').fill('续写故事，第一段以 Anna entered the room. 开头；第二段以 The dog finally found a home. 开头。');
-    await page.locator('#continuationGradingOriginal').fill(original);
+    await page.locator('#continuationGradingMaterials').fill(materials);
+    check('整页试卷只粘贴一次即可获取思路', await page.locator('#getContinuationGuidanceBtn').isEnabled());
     responseMode = 'wait';
     await page.locator('#getContinuationGuidanceBtn').click();
     await page.locator('#continuationGradingProgress').waitFor({ state: 'visible' });
@@ -121,7 +122,8 @@ try {
     responseMode = 'ok'; releaseResponse();
     await page.locator('#continuationGuidanceResult').waitFor({ state: 'visible' });
     check('思路结果显示时输入区保持隐藏', !(await visible('continuationGradingInput')) && !(await visible('continuationGradingProgress')));
-    check('请求携带本次输入供服务端校验', lastRequest.composition.type === 'continuation' && lastRequest.composition.original === original);
+    check('请求携带合并后的完整试卷材料供服务端校验', lastRequest.composition.type === 'continuation' && lastRequest.composition.materials === materials && !('original' in lastRequest.composition));
+    check('思路提示词只包含一次试卷全文', lastRequest.messages[0].content.split(original).length === 2 && !lastRequest.messages[0].content.includes('{MATERIALS}'));
     const bounds = await page.evaluate(() => {
         const toolbar = document.querySelector('#continuationGuidanceResult .result-toolbar').getBoundingClientRect();
         const content = document.querySelector('#continuationGuidanceContent').getBoundingClientRect();
@@ -143,11 +145,12 @@ try {
     check('深色模式同时使用深色页面背景', darkTheme === '#111b27');
     await capture('mobile-dark-guidance.png');
     await page.locator('#newContinuationGuidanceBtn').click();
-    check('返回编辑保留题目与原文', await page.locator('#continuationGradingOriginal').inputValue() === original && !(await visible('continuationGuidanceResult')));
+    check('返回编辑保留题目与原文', await page.locator('#continuationGradingMaterials').inputValue() === materials && !(await visible('continuationGuidanceResult')));
     await page.locator('#continuationGradingContent').fill('Thank you for your help.');
     check('真实短作文提示但允许提交', !(await page.locator('#startContinuationGradingBtn').isDisabled()) && (await page.locator('#continuationGradingContentHelp').innerText()).includes('可以继续批改'));
     await page.locator('#startContinuationGradingBtn').click();
     await page.locator('#continuationGradingResult').waitFor({ state: 'visible' });
+    check('批改提示词按试卷材料和学生续写分开传入', lastRequest.composition.materials === materials && lastRequest.composition.content === 'Thank you for your help.' && lastRequest.messages[0].content.split(original).length === 2);
     check('批改结果与思路互斥', !(await visible('continuationGuidanceResult')) && !(await visible('continuationGradingInput')));
     await page.setViewportSize({ width: 1440, height: 1000 });
     await capture('desktop-dark-report.png');
@@ -184,7 +187,7 @@ try {
     await page.locator('#continuationOcrResult .ocr-page').nth(1).locator('textarea').waitFor();
     await page.waitForFunction(() => !document.querySelector('#continuationOcrModel').disabled);
     check('读后续写OCR按照片分开保留全文', await page.locator('#continuationOcrResult .ocr-page').count() === 2 && (await page.locator('#continuationOcrResult .ocr-page-text').first().inputValue()).includes(original));
-    check('OCR不改动已有批改材料', await page.locator('#continuationGradingContent').inputValue() === continuationBefore && await page.locator('#continuationGradingOriginal').inputValue() === original);
+    check('OCR不改动已有批改材料', await page.locator('#continuationGradingContent').inputValue() === continuationBefore && await page.locator('#continuationGradingMaterials').inputValue() === materials);
     check('切换DeepSeek仅逐张识别，不调用AI分段', ocrRequests.length === 2 && ocrRequests.every(request => !request.split && request.model === 'deepseek-v4.1-flash'));
     ocrRequests.length = 0;
 
@@ -289,6 +292,16 @@ try {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.evaluate(() => { document.body.style.zoom = '2'; });
     await noHorizontalOverflow('200% 页面放大');
+    await page.evaluate(({ original }) => {
+        const key = 'smart-doc-helper:learning-history:v1';
+        const history = JSON.parse(localStorage.getItem(key) || '[]');
+        history.push({ id: 'legacy-split', type: 'continuation', title: '旧版拆分材料兼容', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), versions: [{ id: 'legacy-version', number: 1, kind: 'guidance', input: { topic: '续写约150词，并使用两个段首句。', original, content: '' }, outcome: { text: '旧版学习指导' } }] });
+        localStorage.setItem(key, JSON.stringify(history));
+    }, { original });
+    await page.locator('#historyToggleBtn').click();
+    await page.locator('.history-work-card').filter({ hasText: '旧版拆分材料兼容' }).getByRole('button', { name: '打开该版本' }).click();
+    await page.locator('#newContinuationGuidanceBtn').click();
+    check('旧版历史记录合并恢复题目与原文，不丢失材料', await page.locator('#continuationGradingMaterials').inputValue() === `续写约150词，并使用两个段首句。\n\n${original}`);
     check('AI任务通过轮询获取且临时查询失败可恢复', statusCalls > calls && calls >= 5);
     check('页面脚本无运行错误', errors.length === 0);
     console.log(`\n浏览器检查：${checks} 项通过。所有模型响应均为本地模拟。`);
