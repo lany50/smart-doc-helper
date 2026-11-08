@@ -1,5 +1,5 @@
 const DEFAULT_BASE_URL = 'https://api.chatst.org';
-const DEFAULT_OCR_MODEL = 'gemini-4-argon';
+const DEFAULT_OCR_MODEL = 'gpt-6.1-sol';
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS = 6000;
 const ROLE_LABELS = {
@@ -96,7 +96,7 @@ exports.handler = async (event) => {
         if (rollbackQuota) await rollbackQuota();
         const statusCode = error.statusCode || 500;
         return jsonResponse(statusCode, {
-            error: error.message || 'Gemini OCR 解析失败'
+            error: error.message || 'OCR 解析失败'
         });
     }
 };
@@ -274,7 +274,7 @@ async function callVisionModel({ apiKey, baseURL, model, messages, maxTokens, te
 
     const payload = await readJson(response);
     if (!response.ok) {
-        throw httpError(response.status || 502, payload.error?.message || payload.message || 'Gemini OCR 调用失败');
+        throw httpError(response.status || 502, payload.error?.message || payload.message || 'OCR 调用失败');
     }
     return payload;
 }
@@ -344,7 +344,7 @@ async function readJson(response) {
     try {
         return JSON.parse(text);
     } catch {
-        throw httpError(response.status || 502, text || 'Gemini OCR 返回了非 JSON 响应');
+        throw httpError(response.status || 502, text || 'OCR 返回了非 JSON 响应');
     }
 }
 

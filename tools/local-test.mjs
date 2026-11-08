@@ -208,16 +208,16 @@ console.log('\n== 8. 模型路由和拒绝旧配置 ==');
         body: { action: 'split_ocr_text', rawText: 'hello', roles: ['essay'], ...(model ? { model } : {}) }, ip
     }));
     const ocrDefault = await mk();
-    check('OCR默认转发指定的新模型', ocrDefault.statusCode === 200 && lastUpstreamBody.model === 'gemini-4-argon');
+    check('OCR默认转发指定的新模型', ocrDefault.statusCode === 200 && lastUpstreamBody.model === 'gpt-6.1-sol');
     const rejected = await mk('retired-model');
     check('不支持的OCR模型返回400', rejected.statusCode === 400);
-    const retry = await mk('gemini-4-argon');
+    const retry = await mk('gpt-6.1-sol');
     check('OCR拒绝无效模型后退回额度', retry.statusCode === 200);
     upstreamShouldFail = true;
-    const failedOcr = await mk('gemini-4-argon', '3.3.3.3');
+    const failedOcr = await mk('gpt-6.1-sol', '3.3.3.3');
     upstreamShouldFail = false;
-    const retry1 = await mk('gemini-4-argon', '3.3.3.3');
-    const retry2 = await mk('gemini-4-argon', '3.3.3.3');
+    const retry1 = await mk('gpt-6.1-sol', '3.3.3.3');
+    const retry2 = await mk('gpt-6.1-sol', '3.3.3.3');
     check('OCR整理上游失败返回错误且退回额度', failedOcr.statusCode === 500 && retry1.statusCode === 200 && retry2.statusCode === 200);
 }
 

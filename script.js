@@ -406,7 +406,7 @@ const CONTINUATION_GUIDANCE_PROMPT = `你是一名精通中国高考英语读后
 // 全局变量
 let uploadedImages = []; // 存储上传文件及手动分区
 let ocrResults = []; // 存储OCR结果
-const OCR_SPLIT_MODEL = 'gemini-4-argon';
+const OCR_SPLIT_MODEL = 'gpt-6.1-sol';
 const APPLICATION_OCR_ROLE_OPTIONS = [
     { value: 'topic', label: '题目' },
     { value: 'essay', label: '作文' }
@@ -1621,11 +1621,11 @@ ${gradingResultContent.innerText}
 // ========================================
 
 // 作文OCR
-async function callEssayOCR(file, model = 'gemini-4-argon') {
+async function callEssayOCR(file, model = 'gpt-6.1-sol') {
     return callVisionOCR(file, model);
 }
 
-async function callVisionOCR(file, model = 'gemini-4-argon') {
+async function callVisionOCR(file, model = 'gpt-6.1-sol') {
     const formData = new FormData();
     formData.append('file', file, file.name);
     formData.append('model', model);
