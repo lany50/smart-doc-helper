@@ -406,7 +406,6 @@ const CONTINUATION_GUIDANCE_PROMPT = `你是一名精通中国高考英语读后
 // 全局变量
 let uploadedImages = []; // 存储上传文件及手动分区
 let ocrResults = []; // 存储OCR结果
-const OCR_SPLIT_MODEL = 'gpt-6.1-sol';
 const APPLICATION_OCR_ROLE_OPTIONS = [
     { value: 'topic', label: '题目' },
     { value: 'essay', label: '作文' }
@@ -646,7 +645,7 @@ function initEssayMode() {
 
             progressText.textContent = '正在按多选标签整理题目和作文...';
 
-            const groupedText = await organizeOcrByRoles(ocrResults, APPLICATION_OCR_ROLE_OPTIONS, OCR_SPLIT_MODEL);
+            const groupedText = await organizeOcrByRoles(ocrResults, APPLICATION_OCR_ROLE_OPTIONS, model);
             const mergedText = formatRoleOcrText(ocrResults, APPLICATION_OCR_ROLE_OPTIONS);
 
             setTimeout(() => {
@@ -1246,7 +1245,7 @@ function initContinuationMode() {
             }
 
             progressText.textContent = '正在按多选标签整理题目、原文和续写...';
-            const groupedText = await organizeOcrByRoles(ocrResults, CONTINUATION_OCR_ROLE_OPTIONS, OCR_SPLIT_MODEL);
+            const groupedText = await organizeOcrByRoles(ocrResults, CONTINUATION_OCR_ROLE_OPTIONS, model);
             const mergedText = formatRoleOcrText(ocrResults, CONTINUATION_OCR_ROLE_OPTIONS);
 
             setTimeout(() => {
@@ -1621,11 +1620,11 @@ ${gradingResultContent.innerText}
 // ========================================
 
 // 作文OCR
-async function callEssayOCR(file, model = 'gpt-6.1-sol') {
+async function callEssayOCR(file, model = 'gemini-4-argon') {
     return callVisionOCR(file, model);
 }
 
-async function callVisionOCR(file, model = 'gpt-6.1-sol') {
+async function callVisionOCR(file, model = 'gemini-4-argon') {
     const formData = new FormData();
     formData.append('file', file, file.name);
     formData.append('model', model);
@@ -2356,6 +2355,7 @@ function moveStudentFile(composer, index, direction) { const destination = index
 
 async function runStudentOcr(composer) {
     if (!composer.files.length || composer.state === 'loading') return;
+    const model = composer.ocrModel.value;
     setComposerState(composer, 'loading', { message: '正在识别照片…', operation: 'ocr' });
     const results = [];
     try {
@@ -2366,14 +2366,14 @@ async function runStudentOcr(composer) {
             composer.progressBar.style.width = `${(index / composer.files.length) * 100}%`;
             try {
                 const file = await buildProcessedFile(item);
-                const result = await callEssayOCR(file, composer.ocrModel.value);
+                const result = await callEssayOCR(file, model);
                 results.push({ ok: true, roles: item.roles, text: result.text, fileName: item.file.name });
             } catch (error) { results.push({ ok: false, roles: item.roles, text: '', fileName: item.file.name, error: error.message }); }
         }
         const success = results.filter(result => result.ok).length;
         if (!success) throw new Error('所有文件都识别失败，请检查图片清晰度后重试');
         composer.progressText.textContent = '正在整理题目和作文…';
-        const grouped = await organizeOcrByRoles(results, composer.roles, OCR_SPLIT_MODEL);
+        const grouped = await organizeOcrByRoles(results, composer.roles, model);
         Object.entries(composer.gradeFields).forEach(([key, field]) => {
             const role = key === 'content' ? (composer.type === 'continuation' ? 'continuation' : 'essay') : key;
             field.value = grouped[role] || ''; composer.touched.add(key);

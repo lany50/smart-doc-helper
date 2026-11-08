@@ -34,6 +34,7 @@ let calls = 0;
 let responseMode = 'ok';
 let releaseResponse;
 let lastRequest;
+const ocrRequests = [];
 try {
     browser = await chromium.launch({ headless: true, executablePath });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -54,6 +55,8 @@ try {
         }
         if (route.request().url().endsWith('/.netlify/functions/vision-ocr')) {
             const body = route.request().postData();
+            const split = body?.startsWith('{');
+            ocrRequests.push({ split, model: split ? JSON.parse(body).model : body?.match(/name="model"\r\n\r\n([^\r\n]+)/)?.[1] });
             if (body?.startsWith('{')) return route.fulfill({ json: { content: JSON.stringify({ topic, original, essay, continuation: essay }) } });
             return route.fulfill({ json: { text: body?.includes('filename="作文.png"') ? essay : topic } });
         }
@@ -156,9 +159,14 @@ try {
         { name: '题目与原文.png', mimeType: 'image/png', buffer: png },
         { name: '作文.png', mimeType: 'image/png', buffer: png }
     ]);
+    await page.locator('#continuationSection .model-settings summary').first().click();
+    check('读后续写OCR默认使用Gemini', await page.locator('#continuationOcrModel').inputValue() === 'gemini-4-argon');
+    await page.locator('#continuationOcrModel').selectOption('deepseek-v4.1-flash');
     await page.locator('#startContinuationOcrBtn').click();
     await page.waitForFunction(value => document.querySelector('#continuationGradingContent').value === value, essay);
     check('读后续写多标签识别直接填入题目、原文和续写', await page.locator('#continuationGradingTopic').inputValue() === topic && await page.locator('#continuationGradingOriginal').inputValue() === original);
+    check('切换DeepSeek后图片识别和多标签分段均使用DeepSeek', ocrRequests.some(request => request.split) && ocrRequests.some(request => !request.split) && ocrRequests.every(request => request.model === 'deepseek-v4.1-flash'));
+    ocrRequests.length = 0;
 
     // 应用文：照片直接进入唯一编辑区，并检查文件名超长的窄屏布局。
     await page.locator('#applicationBtn').click();
@@ -170,6 +178,7 @@ try {
     await page.locator('#startOcrBtn').click();
     await page.waitForFunction(value => document.querySelector('#gradingEssay').value === value, essay);
     check('OCR直接填入唯一一套编辑框', await page.locator('#gradingTopic').inputValue() === topic && await page.locator('#essayOcrTopic').count() === 0);
+    check('应用文默认图片识别使用Gemini且可选DeepSeek', ocrRequests.length > 0 && ocrRequests.every(request => request.model === 'gemini-4-argon') && await page.locator('#essayOcrModel option[value="deepseek-v4.1-flash"]').count() === 1 && await page.locator('#essayOcrModel').isEnabled());
     await page.locator('#gradingEssay').fill(`${essay} I will bring some snacks.`);
     await page.locator('#startGradingBtn').click();
     await page.locator('#gradingResult').waitFor({ state: 'visible' });

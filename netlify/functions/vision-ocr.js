@@ -1,5 +1,6 @@
 const DEFAULT_BASE_URL = 'https://api.chatst.org';
-const DEFAULT_OCR_MODEL = 'gpt-6.1-sol';
+const DEFAULT_OCR_MODEL = 'gemini-4-argon';
+const ALLOWED_OCR_MODELS = new Set([DEFAULT_OCR_MODEL, 'deepseek-v4.1-flash']);
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_OUTPUT_TOKENS = 6000;
 const ROLE_LABELS = {
@@ -219,7 +220,7 @@ function sanitizeFileName(fileName) {
 
 function sanitizeModel(model) {
     const normalized = String(model || '').trim();
-    if (normalized && normalized !== DEFAULT_OCR_MODEL) {
+    if (normalized && !ALLOWED_OCR_MODELS.has(normalized)) {
         throw httpError(400, '不支持的 OCR 模型');
     }
     return normalized || DEFAULT_OCR_MODEL;
@@ -268,6 +269,7 @@ async function callVisionModel({ apiKey, baseURL, model, messages, maxTokens, te
             model,
             messages,
             max_tokens: maxTokens,
+            ...(model === 'deepseek-v4.1-flash' ? { thinking: { type: 'disabled' } } : {}),
             temperature
         })
     });
